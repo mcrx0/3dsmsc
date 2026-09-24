@@ -1,0 +1,24 @@
+[library]
+music_root = "sdmc:/3dmms/music/"
+scan_scope = "default"
+last_selected_root = ""
+force_full_scan = false
+exclude_hidden = true
+
+[player]
+volume = 0.8
+animation_enabled = true
+animation_speed = 1.0
+search_case_sensitive = false
+background_playback = true
+
+[controls]
+play_pause = "A"
+back = "B"
+next = "X"
+previous = "Y"
+seek_back = "Left"
+seek_forward = "Right"
+volume_down = "L"
+volume_up = "R"
+exit = "START"

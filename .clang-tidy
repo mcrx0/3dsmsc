@@ -1,0 +1,19 @@
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  -readability-identifier-length
+WarningsAsErrors: ''
+HeaderFilterRegex: '^(include|src|tests)/'
+FormatStyle: file
+CheckOptions:
+  - key: readability-braces-around-statements
+    value: 'true'
+  - key: readability-function-cognitive-complexity
+    value: '30'

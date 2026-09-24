@@ -1,0 +1,21 @@
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR armv6k)
+
+if(NOT DEFINED ENV{DEVKITPRO})
+  message(FATAL_ERROR "DEVKITPRO must be set before using cmake/3DS.cmake")
+endif()
+if(NOT DEFINED ENV{DEVKITARM})
+  message(FATAL_ERROR "DEVKITARM must be set before using cmake/3DS.cmake")
+endif()
+
+set(CMAKE_C_COMPILER "$ENV{DEVKITARM}/bin/arm-none-eabi-gcc")
+set(CMAKE_CXX_COMPILER "$ENV{DEVKITARM}/bin/arm-none-eabi-g++")
+set(CMAKE_ASM_COMPILER "$ENV{DEVKITARM}/bin/arm-none-eabi-gcc")
+set(CMAKE_AR "$ENV{DEVKITARM}/bin/arm-none-eabi-gcc-ar")
+set(CMAKE_RANLIB "$ENV{DEVKITARM}/bin/arm-none-eabi-gcc-ranlib")
+set(CMAKE_OBJCOPY "$ENV{DEVKITARM}/bin/arm-none-eabi-objcopy")
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
+set(CMAKE_C_FLAGS_INIT "-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft -D__3DS__ -DARM11")
+set(CMAKE_CXX_FLAGS_INIT "-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft -D__3DS__ -DARM11")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-specs=3dsx.specs")

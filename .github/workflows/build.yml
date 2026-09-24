@@ -1,0 +1,69 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Check formatting
+        run: |
+          git diff --exit-code -- . ':!third_party'
+          clang-format --dry-run --Werror \
+            include/3dsmsc/audio/decoder.hpp \
+            include/3dsmsc/audio/mp3_decoder.hpp \
+            include/3dsmsc/audio/flac_decoder.hpp \
+            include/3dsmsc/audio/aac_decoder.hpp \
+            include/3dsmsc/config/settings_file.hpp \
+            include/3dsmsc/library/library_index.hpp \
+            include/3dsmsc/library/folder_browser.hpp \
+            include/3dsmsc/queue/playback_queue.hpp \
+            include/3dsmsc/queue/queue_file.hpp \
+            include/3dsmsc/ui/cassette_view.hpp \
+            src/audio/mp3_decoder.cpp \
+            src/audio/flac_decoder.cpp \
+            src/audio/aac_decoder.cpp \
+            src/config/settings_file.cpp \
+            src/library/library_index.cpp \
+            src/library/folder_browser.cpp \
+            src/queue/playback_queue.cpp \
+            src/queue/queue_file.cpp \
+            src/3ds/main.cpp \
+            src/3ds/cassette_renderer.cpp \
+            src/3ds/ndsp_player.cpp \
+            tests/unit/core_tests.cpp
+
+  3ds:
+    needs: host
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install devkitPro
+        uses: devkitpro/devkitpro@v1
+        with:
+          packages: 3ds-dev
+      - name: Configure
+        run: |
+          cmake -S . -B build/3ds -G Ninja \
+            -DBUILD_3DS=ON \
+            -DBUILD_TESTING=OFF \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/3DS.cmake
+      - name: Build
+        run: cmake --build build/3ds
+      - name: Verify package
+        run: |
+          test "$(head -c 4 build/3ds/3dsmsc.3dsx)" = "3DSX"
+          file build/3ds/3dsmsc.3dsx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3dsmsc-3dsx
+          path: build/3ds/3dsmsc.3dsx
