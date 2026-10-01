@@ -41,4 +41,7 @@ The project must not ship code with a license incompatible with the project dist
 - License file: `third_party/faad2/COPYING`
 - Integration: raw ADTS/AAC and M4A/MP4 AAC decoding
 
-The selected FAAD2 path makes the distributed project GPL-compatible. The complete FAAD2 source and license text must remain in the distribution.
+The selected FAAD2 path makes the distributed project GPL-compatible. The vendored copy keeps the
+complete decoder library (`libfaad/`, `include/`), its `COPYING`, `AUTHORS`, `README`, and
+`ChangeLog`. Upstream's own build files, command-line frontend, fuzzers, docs, and the DRM and SSR
+sources (switched off in this build) were removed because nothing here builds or ships them.

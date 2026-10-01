@@ -17,7 +17,6 @@ option(BUILD_TESTING "Build host-side tests" ON)
 file(GLOB FAAD2_SOURCES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/faad2/libfaad/*.c"
 )
-list(FILTER FAAD2_SOURCES EXCLUDE REGEX "/(drm_dec|ssr|ssr_fb|ssr_ipqf)\\.c$")
 add_library(faad2_decoder STATIC ${FAAD2_SOURCES})
 target_include_directories(faad2_decoder
   PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/third_party/faad2/include"
