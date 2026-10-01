@@ -20,7 +20,7 @@ git config --global --add safe.directory /w
 cd /w
 echo "== host job: format, tests, static analysis"
 bash scripts/check-quality.sh
-echo "== 3ds job: build, stack, package"
+echo "== package-3ds job: build, stack, package"
 cmake -S . -B build/3ds -G Ninja -DBUILD_3DS=ON -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_TOOLCHAIN_FILE=cmake/3DS.cmake >/dev/null
 cmake --build build/3ds

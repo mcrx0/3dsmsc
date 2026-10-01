@@ -29,7 +29,7 @@ jobs:
       - name: Format, host tests, and static analysis
         run: bash scripts/check-quality.sh
 
-  3ds:
+  package-3ds:
     name: Nintendo 3DS package
     needs: host
     runs-on: ubuntu-latest
