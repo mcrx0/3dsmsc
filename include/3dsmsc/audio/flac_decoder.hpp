@@ -7,6 +7,7 @@
 #include <string>
 
 #include "3dsmsc/audio/decoder.hpp"
+#include "3dsmsc/util/unique_file.hpp"
 
 namespace threedsmsc {
 
@@ -24,7 +25,7 @@ class FlacDecoder final : public AudioDecoder {
   static drflac_bool32 seek_callback(void* data, int offset, drflac_seek_origin origin);
   static drflac_bool32 tell_callback(void* data, drflac_int64* cursor);
 
-  std::FILE* file_ = nullptr;
+  UniqueFile file_;  // declared before decoder_: the file must outlive the decoder reading it
   std::string path_;
   drflac* decoder_ = nullptr;
   bool open_ = false;

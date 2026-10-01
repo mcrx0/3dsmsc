@@ -68,7 +68,7 @@ std::string BrowseNavigator::label(std::size_t row) const {
       return index_->albums[index_->artists[artist_].first_album + row].name;
     case BrowseLevel::Tracks: {
       const Track& track = library_->tracks[index_->albums[album_].tracks[row]];
-      const std::string title = track.title.empty() ? track.path : track.title;
+      std::string title = track.title.empty() ? track.path : track.title;
       if (track.track_number == 0)
         return title;
       std::string number = std::to_string(track.track_number);

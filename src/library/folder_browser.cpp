@@ -44,8 +44,6 @@ bool FolderBrowser::refresh(std::string& error) {
     if (entry.is_directory)
       entries_.push_back(entry);
   }
-  if (selected_ >= entries_.size())
-    selected_ = entries_.empty() ? 0 : entries_.size() - 1;
   error.clear();
   return true;
 }
@@ -59,7 +57,6 @@ bool FolderBrowser::enter(std::size_t index, std::string& error) {
   // while current_path_ names the new one.
   const std::string previous = current_path_;
   current_path_ = join_path(current_path_, entries_[index].name);
-  selected_ = 0;
   if (refresh(error))
     return true;
   current_path_ = previous;
@@ -73,19 +70,10 @@ bool FolderBrowser::leave(std::string& error) {
   }
   const std::string previous = current_path_;
   current_path_ = parent_path(current_path_);
-  selected_ = 0;
   if (refresh(error))
     return true;
   current_path_ = previous;
   return false;
-}
-
-void FolderBrowser::select(std::size_t index) {
-  if (entries_.empty()) {
-    selected_ = 0;
-    return;
-  }
-  selected_ = std::min(index, entries_.size() - 1);
 }
 
 std::string FolderBrowser::path_of(std::size_t index) const {
@@ -98,10 +86,6 @@ const std::string& FolderBrowser::current_path() const {
 
 const std::vector<DirectoryEntry>& FolderBrowser::entries() const {
   return entries_;
-}
-
-std::size_t FolderBrowser::selected() const {
-  return selected_;
 }
 
 bool FolderBrowser::at_root() const {

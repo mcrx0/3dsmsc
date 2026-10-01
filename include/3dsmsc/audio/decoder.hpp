@@ -15,8 +15,8 @@ enum class DecodeResult {
 };
 
 struct PcmBlockInfo {
-  std::uint32_t sample_rate;
-  std::uint16_t channels;
+  std::uint32_t sample_rate = 0;
+  std::uint16_t channels = 0;
 };
 
 class AudioDecoder {

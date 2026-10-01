@@ -45,7 +45,7 @@ bool LocalFileSystem::list_directory(const std::string& path, std::vector<Direct
     } else if (item->d_type == DT_LNK) {
       continue;
     } else {
-      struct stat file_status{};
+      struct stat file_status {};
       const std::string full_path = join_path(path, name);
       if (lstat(full_path.c_str(), &file_status) != 0 || S_ISLNK(file_status.st_mode))
         continue;

@@ -55,7 +55,13 @@ bool save_settings_file(const std::string& path, const Settings& settings, std::
          << '\n';
   output << "background_playback = " << (settings.background_playback ? "true" : "false") << '\n';
   output << "theme = \"" << (settings.theme == Theme::Light ? "light" : "dark") << "\"\n";
+  output << "battery_display = \"" << battery_display_name(settings.battery_display) << "\"\n";
+  output << "repeat = \"" << repeat_mode_name(settings.repeat) << "\"\n";
+  output << "shuffle = " << (settings.shuffle ? "true" : "false") << '\n';
   output << "seek_seconds = " << settings.seek_seconds << '\n';
+  output << "[equalizer]\n";
+  output << "enabled = " << (settings.eq_enabled ? "true" : "false") << '\n';
+  output << "bands = \"" << format_eq_bands(settings.eq_gains) << "\"\n";
   output << "[controls]\n";
   output << "play_pause = ";
   write_string(output, settings.play_pause_button);

@@ -14,7 +14,7 @@ constexpr s64 poll_interval_ns = 2000000;
 // Audio runs above the UI thread (0x30) so a slow frame cannot starve the decoder. The stack
 // holds minimp3's scratch (~16 KB) and the AAC decoder's working set.
 constexpr s32 worker_priority = 0x28;
-constexpr std::size_t worker_stack_bytes = 64 * 1024;
+constexpr std::size_t worker_stack_bytes = std::size_t{64} * 1024;
 
 std::unique_ptr<AudioDecoder> make_decoder(AudioFormat format) {
   if (format == AudioFormat::Mp3)
@@ -168,6 +168,36 @@ void NdspAudioPlayer::set_volume(float volume) {
   apply_volume();
 }
 
+void NdspAudioPlayer::set_equalizer(bool enabled, const std::int8_t* gains) {
+  for (int band = 0; band < eq_band_count; ++band)
+    eq_gains_[band] = gains[band];
+  eq_enabled_ = enabled;
+  eq_revision_ = eq_revision_ + 1;  // last, so the worker never sees a half-written update
+}
+
+// Runs on the worker thread before audio is filtered.
+void NdspAudioPlayer::refresh_equalizer() {
+  if (eq_applied_revision_ == eq_revision_ && eq_applied_rate_ == sample_rate_)
+    return;
+  eq_applied_revision_ = eq_revision_;
+  eq_applied_rate_ = sample_rate_;
+  std::int8_t gains[eq_band_count] = {};
+  if (eq_enabled_) {
+    for (int band = 0; band < eq_band_count; ++band)
+      gains[band] = eq_gains_[band];
+  }
+  equalizer_.configure(gains, sample_rate_);
+}
+
+void NdspAudioPlayer::poll_headphones() {
+  if (!initialized_)
+    return;
+  bool inserted = false;
+  // On failure keep the last known state instead of flickering the icon.
+  if (R_SUCCEEDED(DSP_GetHeadphoneStatus(&inserted)))
+    headphones_ = inserted;
+}
+
 void NdspAudioPlayer::set_background_playback(bool enabled) {
   background_playback_ = enabled;
 }
@@ -208,6 +238,8 @@ void NdspAudioPlayer::worker_entry(void* data) {
 }
 
 void NdspAudioPlayer::worker_main() {
+  equalizer_.reset();  // a new track must not inherit the previous one's filter memory
+  eq_applied_revision_ = 0;
   while (!stop_requested_) {
     if (seek_target_ms_ >= 0 && !apply_seek())
       break;
@@ -218,28 +250,34 @@ void NdspAudioPlayer::worker_main() {
     }
     const DecodeResult result = fill_buffer(slot);
     if (result != DecodeResult::FrameReady) {
-      if (result == DecodeResult::EndOfStream) {
-        // Let the audio already queued finish instead of cutting the track's tail.
-        auto draining = [this] {
-          for (const ndspWaveBuf& buffer : buffers_) {
-            if (buffer.status != NDSP_WBUF_DONE)
-              return true;
-          }
-          return false;
-        };
-        while (!stop_requested_ && draining())
-          svcSleepThread(poll_interval_ns);
-      }
-      // A decode failure is reported as Error so the app can tell it from a finished track.
-      if (!stop_requested_)
-        state_ = result == DecodeResult::EndOfStream ? PlaybackState::Stopped : PlaybackState::Error;
-      running_ = false;
+      finish_track(result);
       break;
     }
     ndspChnWaveBufAdd(audio_channel, &buffers_[slot]);
     frames_played_ += static_cast<std::uint32_t>(buffers_[slot].nsamples);
     next_slot_ = (slot + 1) % buffer_count;
   }
+  running_ = false;
+}
+
+void NdspAudioPlayer::drain_queued_audio() {
+  const auto draining = [this] {
+    for (const ndspWaveBuf& buffer : buffers_) {
+      if (buffer.status != NDSP_WBUF_DONE)
+        return true;
+    }
+    return false;
+  };
+  while (!stop_requested_ && draining())
+    svcSleepThread(poll_interval_ns);
+}
+
+void NdspAudioPlayer::finish_track(DecodeResult result) {
+  if (result == DecodeResult::EndOfStream)
+    drain_queued_audio();
+  // A decode failure is reported as Error so the app can tell it from a finished track.
+  if (!stop_requested_)
+    state_ = result == DecodeResult::EndOfStream ? PlaybackState::Stopped : PlaybackState::Error;
   running_ = false;
 }
 
@@ -274,7 +312,23 @@ bool NdspAudioPlayer::apply_seek() {
   position_offset_ms_ = static_cast<std::uint32_t>(target);
   frames_played_ = 0;
   next_slot_ = 0;
+  equalizer_.reset();
   return true;
+}
+
+void NdspAudioPlayer::append_block(std::int16_t* destination, std::size_t frames,
+                                   std::uint16_t channels) {
+  if (channels == 1) {
+    for (std::size_t frame = 0; frame < frames; ++frame) {
+      destination[frame * 2] = decoded_samples_[frame];
+      destination[frame * 2 + 1] = decoded_samples_[frame];
+    }
+  } else {
+    std::memcpy(destination, decoded_samples_.data(), frames * 2 * sizeof(std::int16_t));
+  }
+  refresh_equalizer();
+  if (equalizer_.active())
+    equalizer_.process(destination, frames);
 }
 
 DecodeResult NdspAudioPlayer::fill_buffer(std::size_t slot) {
@@ -299,15 +353,7 @@ DecodeResult NdspAudioPlayer::fill_buffer(std::size_t slot) {
       channels_ = 2;
       ndspChnSetRate(audio_channel, static_cast<float>(sample_rate_));
     }
-    std::int16_t* destination = storage_[slot] + filled_frames * 2;
-    if (info.channels == 1) {
-      for (std::size_t frame = 0; frame < frames; ++frame) {
-        destination[frame * 2] = decoded_samples_[frame];
-        destination[frame * 2 + 1] = decoded_samples_[frame];
-      }
-    } else {
-      std::memcpy(destination, decoded_samples_.data(), frames * 2 * sizeof(std::int16_t));
-    }
+    append_block(storage_[slot] + filled_frames * 2, frames, info.channels);
     filled_frames += frames;
   }
   buffers_[slot].nsamples = static_cast<u32>(filled_frames);

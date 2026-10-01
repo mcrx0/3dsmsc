@@ -13,3 +13,6 @@ note
 scan
 seek_back
 seek_forward
+shuffle
+repeat_one
+headphones

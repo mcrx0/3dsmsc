@@ -1,5 +1,7 @@
 [library]
+# Folder scanned when no folders are chosen in Settings > Music folders (see folders.txt).
 music_root = "sdmc:/3dsmsc/music/"
+# Kept for older configs; the chosen folders are stored in folders.txt now.
 scan_scope = "default"
 last_selected_root = ""
 force_full_scan = false
@@ -11,9 +13,23 @@ animation_enabled = true
 animation_speed = 1.0
 search_case_sensitive = false
 background_playback = true
-theme = "dark"  # "dark" or "light"
-seek_seconds = 10  # seek button step: 5, 10, 15 or 25
+# "dark" or "light"
+theme = "dark"
+# Battery in the header: "icon", "percent" or "off".
+battery_display = "icon"
+# "off" (stop after the last track), "all" (loop the queue) or "one"
+repeat = "all"
+# Play the queue in random order, every track once per pass.
+shuffle = false
+# Seek button step: 5, 10, 15 or 25.
+seek_seconds = 10
 
+[equalizer]
+enabled = false
+# Gains in dB for 31 Hz, 62, 125, 250, 500, 1 kHz, 2k, 4k, 8k and 16k; each -12 to 12.
+bands = "0,0,0,0,0,0,0,0,0,0"
+
+# Button names are read and saved, but the buttons are not remappable yet: the mapping is fixed.
 [controls]
 play_pause = "A"
 back = "B"

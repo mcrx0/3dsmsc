@@ -11,6 +11,8 @@
 
 namespace threedsmsc {
 
+struct Palette;
+
 class CassetteRenderer {
  public:
   bool init();
@@ -36,7 +38,19 @@ class CassetteRenderer {
   void draw_parsed(const C2D_Text* text, float x, float y, float scale, u32 color);
   void draw_top(const CassetteView& view);
   void draw_bottom(const CassetteView& view);
-  void load_artwork(const std::string& path);
+  void draw_equalizer(const CassetteView& view);
+  void draw_battery(const CassetteView& view, const Palette& p);
+  void draw_list(const CassetteView& view, const Palette& p);
+  void draw_list_row(const CassetteView& view, const Palette& p, std::size_t index, float y);
+  void draw_button_pair_row(const CassetteView& view, const Palette& p, std::size_t index, float y);
+  void draw_mapping_row(const CassetteView& view, const Palette& p, std::size_t index, float y);
+  void draw_section_header(const CassetteView& view, const Palette& p, std::size_t index, float y);
+  void draw_item_row(const CassetteView& view, const Palette& p, std::size_t index, float y);
+  void draw_tick_box(const Palette& p, float y, bool checked);
+  void draw_scrollbar(const CassetteView& view, const Palette& p, float rows_top);
+  void draw_home(const CassetteView& view, const Palette& p);
+  void draw_transport(const CassetteView& view, const Palette& p);
+  void draw_tiles(const CassetteView& view, const Palette& p);
 
   u32 shadow_color_ = 0;  // 0 disables the text shadow
   C2D_SpriteSheet icons_ = nullptr;
@@ -45,10 +59,6 @@ class CassetteRenderer {
   std::size_t cached_glyphs_ = 0;
   C3D_RenderTarget* top_target_ = nullptr;
   C3D_RenderTarget* bottom_target_ = nullptr;
-  C3D_Tex artwork_texture_ = {};
-  Tex3DS_Texture artwork_import_ = nullptr;
-  C2D_Image artwork_image_ = {};
-  std::string artwork_path_;
 };
 
 }

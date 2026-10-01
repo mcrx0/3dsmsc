@@ -20,13 +20,12 @@ enum class ScanState : std::uint8_t {
 struct LibraryIndex {
   std::string root;
   std::vector<Track> tracks;
-  ScanState state;
+  ScanState state = ScanState::NotScanned;
   std::string message;
 };
 
 std::vector<std::size_t> find_tracks(const LibraryIndex& library, std::string_view query,
                                      bool case_sensitive);
-std::vector<std::size_t> find_albums(const LibraryIndex& library);
 std::string empty_library_message();
 
 }

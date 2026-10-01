@@ -1,49 +1,28 @@
+# Build output. The project is always built out of source (cmake -B build), so these
+# directories hold every object file, library, ELF, and the generated icon sheet.
 build/
 build-*/
-out/
 cmake-build-*/
 
-.cache/
-.codegraph/
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-CTestTestfile.cmake
-Testing/
-install_manifest.txt
-compile_commands.json
-build.ninja
-.ninja_deps
-.ninja_log
-rules.ninja
+# The finished .3dsx copied here by the 3DS build, ready to test on a console.
+dist/
 
-*.o
-*.a
-*.so
-*.elf
-*.axf
+# Binaries are never committed, wherever they end up.
 *.3dsx
 *.smdh
-*.cia
-*.map
-*.gcda
-*.gcno
-*.profraw
-*.profdata
-*.d
 
+# Python bytecode from importing the scripts in scripts/.
+__pycache__/
+
+# clangd: its index, and the compile database often symlinked into the repository root.
+.cache/
+compile_commands.json
+
+# Local tooling and editors.
+.codegraph/
 .idea/
-.vscode/*
-!.vscode/settings.json
-
+.vscode/
+*.swp
+*~
 .DS_Store
 Thumbs.db
-.env
-.env.*
-!.env.example
-*.swp
-*.swo
-*~
-*.tmp
-*.log
-dist/

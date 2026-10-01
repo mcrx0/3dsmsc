@@ -7,8 +7,6 @@ namespace threedsmsc {
 FlacDecoder::~FlacDecoder() {
   if (decoder_ != nullptr)
     drflac_close(decoder_);
-  if (file_ != nullptr)
-    std::fclose(file_);
 }
 
 bool FlacDecoder::open(const Track& track) {
@@ -18,17 +16,13 @@ bool FlacDecoder::open(const Track& track) {
     drflac_close(decoder_);
     decoder_ = nullptr;
   }
-  if (file_ != nullptr) {
-    std::fclose(file_);
-    file_ = nullptr;
-  }
   path_ = track.path;
-  file_ = std::fopen(path_.c_str(), "rb");
+  file_ = open_file(path_, "rb");  // replacing the handle closes any previous file
   if (file_ == nullptr) {
     open_ = false;
     return false;
   }
-  decoder_ = drflac_open(read_callback, seek_callback, tell_callback, file_, nullptr);
+  decoder_ = drflac_open(read_callback, seek_callback, tell_callback, file_.get(), nullptr);
   open_ = decoder_ != nullptr;
   return open_;
 }
@@ -40,9 +34,9 @@ void FlacDecoder::reset() {
     drflac_close(decoder_);
     decoder_ = nullptr;
   }
-  std::fseek(file_, 0, SEEK_SET);
-  std::clearerr(file_);
-  decoder_ = drflac_open(read_callback, seek_callback, tell_callback, file_, nullptr);
+  std::fseek(file_.get(), 0, SEEK_SET);
+  std::clearerr(file_.get());
+  decoder_ = drflac_open(read_callback, seek_callback, tell_callback, file_.get(), nullptr);
   open_ = decoder_ != nullptr;
 }
 
