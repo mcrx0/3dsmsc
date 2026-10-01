@@ -161,7 +161,7 @@ void test_nothing_playable() {
   assert(silent.status() == "No DSP firmware");  // the reason, not a generic message
 
   // An empty queue is not an error worth reporting.
-  Rig empty({});
+  Rig empty(std::vector<std::string>{});
   assert(!empty.controller.load_current(true));
   assert(empty.status() == "<none>");
 }
@@ -222,7 +222,7 @@ void test_toggle_play_pause() {
   rig.controller.toggle_play_pause();
   assert(rig.audio.state == PlaybackState::Playing);
 
-  Rig empty({});
+  Rig empty(std::vector<std::string>{});
   empty.controller.toggle_play_pause();  // no track: nothing happens
   assert(empty.audio.calls.empty());
 
