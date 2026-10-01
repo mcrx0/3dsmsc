@@ -139,6 +139,7 @@ never notices.
 - [docs/architecture.md](docs/architecture.md): modules, threads, data flow, and platform limits.
 - [docs/building.md](docs/building.md): build, container build, stack check, and CI.
 - [docs/testing.md](docs/testing.md): host tests, the host harness, and the hardware checklist.
+- [docs/container-workflow.md](docs/container-workflow.md): building, checking, and replaying CI in the devkitPro container.
 - [docs/coding-standards.md](docs/coding-standards.md): naming, structure, and the checks that enforce them.
 - [docs/adr/](docs/adr/): the decisions behind the design.
 - [CONTEXT.md](CONTEXT.md): the project's vocabulary.

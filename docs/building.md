@@ -96,6 +96,9 @@ podman run --rm -v "$PWD":/src -w /src docker.io/devkitpro/devkitarm sh -c '
   cmake --build build/3ds'
 ```
 
+See [container-workflow.md](container-workflow.md) for the whole container flow, including how to
+replay CI locally.
+
 ## Quality checks
 
 ```sh
