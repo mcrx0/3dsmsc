@@ -54,6 +54,11 @@ void append_text_character(std::string& output, std::uint32_t value) {
   } else if (value <= 0x7FF) {
     output.push_back(static_cast<char>(0xC0 | (value >> 6)));
     output.push_back(static_cast<char>(0x80 | (value & 0x3F)));
+  } else if (value >= 0x10000) {
+    output.push_back(static_cast<char>(0xF0 | (value >> 18)));
+    output.push_back(static_cast<char>(0x80 | ((value >> 12) & 0x3F)));
+    output.push_back(static_cast<char>(0x80 | ((value >> 6) & 0x3F)));
+    output.push_back(static_cast<char>(0x80 | (value & 0x3F)));
   } else {
     output.push_back(static_cast<char>(0xE0 | (value >> 12)));
     output.push_back(static_cast<char>(0x80 | ((value >> 6) & 0x3F)));
@@ -67,22 +72,35 @@ std::string decode_text(const unsigned char* data, std::size_t size, unsigned ch
   const unsigned char* text = data + 1;
   std::size_t text_size = size - 1;
   if (encoding == 1 || encoding == 2) {
-    if (text_size < 2)
-      return {};
-    const bool big_endian = text[0] == 0xFE && text[1] == 0xFF;
-    const bool little_endian = text[0] == 0xFF && text[1] == 0xFE;
-    if (!big_endian && !little_endian)
-      return {};
-    text += 2;
-    text_size -= 2;
+    bool big_endian = encoding == 2;
+    if (encoding == 1) {
+      if (text_size < 2)
+        return {};
+      const bool bom_be = text[0] == 0xFE && text[1] == 0xFF;
+      const bool bom_le = text[0] == 0xFF && text[1] == 0xFE;
+      if (!bom_be && !bom_le)
+        return {};
+      big_endian = bom_be;
+      text += 2;
+      text_size -= 2;
+    }
     text_size -= text_size % 2;
     std::string result;
     for (std::size_t offset = 0; offset < text_size; offset += 2) {
-      const std::uint32_t value =
+      std::uint32_t value =
           big_endian ? (static_cast<std::uint32_t>(text[offset]) << 8) | text[offset + 1]
                      : (static_cast<std::uint32_t>(text[offset + 1]) << 8) | text[offset];
       if (value == 0)
         break;
+      if (value >= 0xD800 && value <= 0xDBFF && offset + 4 <= text_size) {
+        const std::uint32_t low =
+            big_endian ? (static_cast<std::uint32_t>(text[offset + 2]) << 8) | text[offset + 3]
+                       : (static_cast<std::uint32_t>(text[offset + 3]) << 8) | text[offset + 2];
+        if (low >= 0xDC00 && low <= 0xDFFF) {
+          value = 0x10000 + ((value - 0xD800) << 10) + (low - 0xDC00);
+          offset += 2;
+        }
+      }
       append_text_character(result, value);
     }
     return result;
@@ -90,8 +108,108 @@ std::string decode_text(const unsigned char* data, std::size_t size, unsigned ch
   std::size_t end = 0;
   while (end < text_size && text[end] != 0)
     ++end;
+  if (encoding == 0) {
+    std::string result;
+    result.reserve(end);
+    for (std::size_t index = 0; index < end; ++index)
+      append_text_character(result, text[index]);
+    return result;
+  }
   return std::string(reinterpret_cast<const char*>(text), end);
 }
+
+std::uint16_t parse_number_prefix(std::string_view value) {
+  std::uint32_t number = 0;
+  bool found = false;
+  for (const char c : value) {
+    if (c < '0' || c > '9')
+      break;
+    found = true;
+    number = number * 10 + static_cast<std::uint32_t>(c - '0');
+    if (number > 9999)
+      return 0;
+  }
+  return found ? static_cast<std::uint16_t>(number) : 0;
+}
+
+struct Mp3FrameHeader {
+  unsigned bitrate_kbps;
+  unsigned sample_rate;
+  unsigned samples_per_frame;
+  unsigned xing_offset;  // from the start of the frame
+  unsigned vbri_offset;
+};
+
+bool parse_mp3_header(const unsigned char* h, Mp3FrameHeader& out) {
+  if (h[0] != 0xFF || (h[1] & 0xE0) != 0xE0)
+    return false;
+  const unsigned version = (h[1] >> 3) & 3;  // 0: MPEG 2.5, 2: MPEG 2, 3: MPEG 1
+  const unsigned layer = (h[1] >> 1) & 3;    // 1: layer III, 2: layer II, 3: layer I
+  const unsigned bitrate_index = (h[2] >> 4) & 0xF;
+  const unsigned rate_index = (h[2] >> 2) & 3;
+  if (version == 1 || layer == 0 || bitrate_index == 0 || bitrate_index == 15 || rate_index == 3)
+    return false;
+  static const unsigned mpeg1[3][14] = {
+      {32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448},  // layer I
+      {32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384},     // layer II
+      {32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320}};     // layer III
+  static const unsigned mpeg2[3][14] = {
+      {32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256},
+      {8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160},
+      {8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160}};
+  static const unsigned rates[3][3] = {{11025, 12000, 8000}, {0, 0, 0}, {22050, 24000, 16000}};
+  static const unsigned rates_mpeg1[3] = {44100, 48000, 32000};
+  const bool mpeg1_stream = version == 3;
+  const unsigned layer_row = layer == 3 ? 0 : (layer == 2 ? 1 : 2);
+  out.bitrate_kbps = (mpeg1_stream ? mpeg1 : mpeg2)[layer_row][bitrate_index - 1];
+  out.sample_rate = mpeg1_stream ? rates_mpeg1[rate_index] : rates[version][rate_index];
+  out.samples_per_frame = layer == 3 ? 384 : (layer == 2 ? 1152 : (mpeg1_stream ? 1152 : 576));
+  const bool mono = ((h[3] >> 6) & 3) == 3;
+  out.xing_offset = mpeg1_stream ? (mono ? 21 : 36) : (mono ? 13 : 21);
+  out.vbri_offset = 36;
+  return out.sample_rate != 0;
+}
+
+// Length of an MP3 whose audio starts at audio_start. A Xing/Info or VBRI header in the first
+// frame holds the exact frame count; otherwise the length is estimated from the bitrate, which
+// is exact for constant-bitrate files.
+std::uint64_t mp3_duration_ms(std::FILE* file, long audio_start) {
+  if (std::fseek(file, 0, SEEK_END) != 0)
+    return 0;
+  const long file_size = std::ftell(file);
+  if (file_size <= audio_start || std::fseek(file, audio_start, SEEK_SET) != 0)
+    return 0;
+  unsigned char buffer[4096];
+  const std::size_t bytes = std::fread(buffer, 1, sizeof(buffer), file);
+  for (std::size_t i = 0; i + 4 <= bytes; ++i) {
+    Mp3FrameHeader header{};
+    if (!parse_mp3_header(buffer + i, header))
+      continue;
+    const auto tag_at = [&](unsigned offset, const char* name) {
+      return i + offset + 4 <= bytes && std::memcmp(buffer + i + offset, name, 4) == 0;
+    };
+    unsigned frames = 0;
+    if ((tag_at(header.xing_offset, "Xing") || tag_at(header.xing_offset, "Info")) &&
+        i + header.xing_offset + 12 <= bytes &&
+        (read_u32_be(buffer + i + header.xing_offset + 4) & 1u) != 0) {
+      frames = read_u32_be(buffer + i + header.xing_offset + 8);
+    } else if (tag_at(header.vbri_offset, "VBRI") && i + header.vbri_offset + 18 <= bytes) {
+      frames = read_u32_be(buffer + i + header.vbri_offset + 14);
+    }
+    if (frames != 0) {
+      return static_cast<std::uint64_t>(frames) * header.samples_per_frame * 1000ULL /
+             header.sample_rate;
+    }
+    const std::uint64_t audio_bytes = static_cast<std::uint64_t>(file_size - audio_start);
+    return audio_bytes * 8ULL / header.bitrate_kbps;  // bits / (kbit/s) = milliseconds
+  }
+  return 0;
+}
+
+// Frames larger than this are skipped, not read: text fields are tiny, while an embedded
+// cover (APIC) can be megabytes and reading it for every track makes scans crawl on an SD card.
+constexpr std::uint32_t max_text_frame_bytes = 4096;
+constexpr std::size_t max_flac_block_bytes = 256 * 1024;
 
 bool read_id3(std::FILE* file, TrackMetadata& metadata) {
   unsigned char header[10];
@@ -101,32 +219,74 @@ bool read_id3(std::FILE* file, TrackMetadata& metadata) {
   if (header[3] != 3 && header[3] != 4)
     return false;
   const std::uint32_t tag_size = read_u32_syncsafe(header + 6);
-  if (tag_size == 0 || tag_size > 16u * 1024u * 1024u)
+  if (tag_size == 0)
     return false;
-  std::vector<unsigned char> data(tag_size);
-  if (std::fread(data.data(), 1, data.size(), file) != data.size())
-    return false;
-  std::size_t offset = 0;
-  while (offset + 10 <= data.size()) {
-    const unsigned char* frame = data.data() + offset;
+  std::uint32_t offset = 0;
+  if ((header[5] & 0x40) != 0) {  // extended header: skip it
+    unsigned char extended[4];
+    if (std::fread(extended, 1, sizeof(extended), file) != sizeof(extended))
+      return false;
+    const std::uint32_t extended_size =
+        header[3] == 4 ? read_u32_syncsafe(extended) : read_u32_be(extended) + 4;
+    if (extended_size < 4 || extended_size > tag_size ||
+        std::fseek(file, static_cast<long>(extended_size - 4), SEEK_CUR) != 0)
+      return false;
+    offset = extended_size;
+  }
+  bool has_title = false;
+  bool has_artist = false;
+  bool has_album = false;
+  bool has_track = false;
+  bool has_disc = false;
+  while (offset + 10 <= tag_size) {
+    unsigned char frame[10];
+    if (std::fread(frame, 1, sizeof(frame), file) != sizeof(frame) || frame[0] == 0)
+      break;  // end of file or the zero padding that closes a tag
     const std::uint32_t frame_size =
         header[3] == 4 ? read_u32_syncsafe(frame + 4) : read_u32_be(frame + 4);
-    if (frame_size == 0 || frame_size > data.size() - offset - 10)
-      break;
     offset += 10;
+    if (frame_size == 0 || frame_size > tag_size - offset)
+      break;
     const std::string_view id(reinterpret_cast<const char*>(frame), 4);
-    if (id == "TIT2" || id == "TPE1" || id == "TALB") {
-      const std::string value = decode_text(data.data() + offset, frame_size, data[offset]);
-      if (id == "TIT2")
+    const bool wanted = id == "TIT2" || id == "TPE1" || id == "TALB" || id == "TRCK" || id == "TPOS";
+    if (wanted && frame_size <= max_text_frame_bytes) {
+      std::vector<unsigned char> body(frame_size);
+      if (std::fread(body.data(), 1, body.size(), file) != body.size())
+        break;
+      const std::string value = decode_text(body.data(), body.size(), body[0]);
+      if (id == "TIT2") {
         metadata.title = value;
-      else if (id == "TPE1")
+        has_title = true;
+      } else if (id == "TPE1") {
         metadata.artist = value;
-      else
+        has_artist = true;
+      } else if (id == "TALB") {
         metadata.album = value;
+        has_album = true;
+      } else if (id == "TRCK") {
+        metadata.track_number = parse_number_prefix(value);
+        has_track = true;
+      } else {
+        metadata.disc_number = parse_number_prefix(value);
+        has_disc = true;
+      }
+    } else if (std::fseek(file, static_cast<long>(frame_size), SEEK_CUR) != 0) {
+      break;
     }
     offset += frame_size;
+    if (has_title && has_artist && has_album && has_track && has_disc)
+      break;
   }
-  return !metadata.title.empty() || !metadata.artist.empty() || !metadata.album.empty();
+  const long audio_start = 10 + static_cast<long>(tag_size) + ((header[5] & 0x10) != 0 ? 10 : 0);
+  metadata.duration_ms = mp3_duration_ms(file, audio_start);
+  return !metadata.title.empty() || !metadata.artist.empty() || !metadata.album.empty() ||
+         metadata.duration_ms != 0;
+}
+
+// An MP3 with no ID3 tag starts straight at its first frame.
+bool read_untagged_mp3(std::FILE* file, TrackMetadata& metadata) {
+  metadata.duration_ms = mp3_duration_ms(file, 0);
+  return metadata.duration_ms != 0;
 }
 
 std::uint64_t read_be_bits(const unsigned char* data, std::size_t byte_offset,
@@ -152,6 +312,16 @@ bool read_flac(std::FILE* file, TrackMetadata& metadata) {
     const std::size_t block_size = (static_cast<std::size_t>(block_header[1]) << 16) |
                                    (static_cast<std::size_t>(block_header[2]) << 8) |
                                    block_header[3];
+    const unsigned block_type = block_header[0] & 0x7F;
+    // Only STREAMINFO (0) and VORBIS_COMMENT (4) matter. Skip the rest, such as embedded
+    // pictures, by seeking instead of reading megabytes into memory.
+    if ((block_type != 0 && block_type != 4) || block_size > max_flac_block_bytes) {
+      if (std::fseek(file, static_cast<long>(block_size), SEEK_CUR) != 0)
+        return found || metadata.duration_ms != 0;
+      if ((block_header[0] & 0x80) != 0)
+        break;
+      continue;
+    }
     std::vector<unsigned char> block(block_size);
     if (block_size != 0 && std::fread(block.data(), 1, block.size(), file) != block.size())
       return found;
@@ -190,6 +360,10 @@ bool read_flac(std::FILE* file, TrackMetadata& metadata) {
               metadata.artist = std::string(value);
             else if (key == "ALBUM")
               metadata.album = std::string(value);
+            else if (key == "TRACKNUMBER")
+              metadata.track_number = parse_number_prefix(value);
+            else if (key == "DISCNUMBER")
+              metadata.disc_number = parse_number_prefix(value);
             found = true;
           }
         }
@@ -258,6 +432,8 @@ bool EmbeddedMetadataReader::read(const std::string& path, TrackMetadata& metada
     result = read_id3(file, metadata);
   else if (has_marker && std::memcmp(marker, "fLaC", 4) == 0)
     result = read_flac(file, metadata);
+  else if (has_marker && marker[0] == 0xFF && (marker[1] & 0xE0) == 0xE0)
+    result = read_untagged_mp3(file, metadata);
   else
     result = read_mp4(file, metadata);
   std::fclose(file);
@@ -278,6 +454,8 @@ bool CompositeMetadataReader::read(const std::string& path, TrackMetadata& metad
     if (metadata.album.empty())
       metadata.album = fallback_metadata.album;
   }
+  if (metadata.track_number == 0)
+    metadata.track_number = fallback_metadata.track_number;
   return primary_found || fallback_found;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "3dsmsc/config/settings.hpp"
 #include "3dsmsc/library/filesystem.hpp"
@@ -14,9 +15,12 @@ class LibraryController {
  public:
   explicit LibraryController(FileSystem& filesystem, Settings settings);
 
-  bool scan();
-  bool scan_root(const std::string& root);
+  bool scan(const ScanCallbacks& callbacks = {});
+  bool scan_root(const std::string& root, const ScanCallbacks& callbacks = {});
+  bool scan_roots(const std::vector<std::string>& roots, const ScanCallbacks& callbacks = {});
   void set_selected_root(const std::string& root);
+  // Folders to scan; an empty list scans the configured default folder.
+  void set_selected_roots(std::vector<std::string> roots);
   const LibraryIndex& library() const;
   const Track* current_track() const;
   const std::string& status() const;
@@ -24,6 +28,7 @@ class LibraryController {
  private:
   FileSystem& filesystem_;
   Settings settings_;
+  std::vector<std::string> selected_roots_;
   LibraryIndex library_;
   std::string status_;
   EmbeddedMetadataReader embedded_metadata_reader_;

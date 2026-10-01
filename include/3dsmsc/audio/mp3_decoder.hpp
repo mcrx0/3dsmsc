@@ -22,17 +22,21 @@ class Mp3Decoder final : public AudioDecoder {
   bool seek(std::uint64_t position_ms) override;
 
  private:
-  static constexpr std::size_t max_input_bytes = 32768;
+  static constexpr std::size_t min_input_bytes = 16384;
+  static constexpr std::uint64_t priming_ms = 300;
   static constexpr std::size_t max_frame_samples = 2304;
   static constexpr std::size_t input_chunk_bytes = 4096;
 
   mp3dec_t decoder_ = {};
   std::vector<std::uint8_t> pending_input_;
+  std::size_t pending_pos_ = 0;  // bytes of pending_input_ already consumed
   std::array<std::uint8_t, input_chunk_bytes> input_chunk_ = {};
   std::array<std::int16_t, max_frame_samples> frame_samples_ = {};
   std::FILE* file_ = nullptr;
   std::string path_;
   bool open_ = false;
+  bool end_of_file_ = false;
+  bool skip_decode_ = false;
 };
 
 }

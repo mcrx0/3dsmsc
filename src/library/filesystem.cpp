@@ -34,17 +34,23 @@ bool LocalFileSystem::list_directory(const std::string& path, std::vector<Direct
     if (name == "." || name == "..") {
       continue;
     }
-    struct stat file_status{};
-    const std::string full_path = join_path(path, name);
-    if (lstat(full_path.c_str(), &file_status) != 0) {
-      continue;
-    }
-    if (S_ISLNK(file_status.st_mode)) {
-      continue;
-    }
     DirectoryEntry entry;
     entry.name = name;
-    entry.is_directory = S_ISDIR(file_status.st_mode);
+    // The directory read usually reports the entry type; an lstat per entry costs an extra
+    // filesystem call each, which adds up on an SD card.
+    if (item->d_type == DT_DIR) {
+      entry.is_directory = true;
+    } else if (item->d_type == DT_REG) {
+      entry.is_directory = false;
+    } else if (item->d_type == DT_LNK) {
+      continue;
+    } else {
+      struct stat file_status{};
+      const std::string full_path = join_path(path, name);
+      if (lstat(full_path.c_str(), &file_status) != 0 || S_ISLNK(file_status.st_mode))
+        continue;
+      entry.is_directory = S_ISDIR(file_status.st_mode);
+    }
     entries.push_back(std::move(entry));
   }
   closedir(directory);

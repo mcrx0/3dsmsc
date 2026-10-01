@@ -40,6 +40,12 @@ const Track* PlaybackQueue::current() const {
   return &tracks_[current_index_];
 }
 
+Track* PlaybackQueue::mutable_current() {
+  if (tracks_.empty())
+    return nullptr;
+  return &tracks_[current_index_];
+}
+
 bool PlaybackQueue::select(std::size_t index) {
   if (index >= tracks_.size())
     return false;

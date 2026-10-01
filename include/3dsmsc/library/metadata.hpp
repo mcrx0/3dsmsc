@@ -9,7 +9,9 @@ struct TrackMetadata {
   std::string title;
   std::string artist;
   std::string album;
-  std::uint64_t duration_ms;
+  std::uint64_t duration_ms = 0;
+  std::uint16_t track_number = 0;
+  std::uint16_t disc_number = 0;
 };
 
 class MetadataReader {

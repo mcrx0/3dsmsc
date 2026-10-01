@@ -18,6 +18,7 @@ class AacDecoder final : public AudioDecoder {
   DecodeResult decode(std::int16_t* output, std::size_t output_capacity, std::size_t& written,
                       PcmBlockInfo& info) override;
   void reset() override;
+  bool can_seek() const override { return mp4_open_ && mp4_duration_ms_ != 0; }
   bool seek(std::uint64_t position_ms) override;
 
  private:

@@ -6,7 +6,7 @@ A playable audio file identified by its filesystem path. A track may contain tit
 
 ## Album
 
-A metadata-based grouping of tracks. Folder structure is used only as a fallback when metadata is absent.
+A metadata-based grouping of tracks by artist and album name. Its tracks play in disc number, then track number order; untagged numbers sort last. Folder structure is used only as a fallback when metadata is absent.
 
 ## Artist
 
@@ -14,7 +14,11 @@ A metadata-based grouping of tracks. The artist is not a filesystem entity.
 
 ## Library
 
-The result of an explicit scan of one selected music root. Scanning does not run automatically.
+The result of an explicit scan of the user's selected music folders, or of the default music folder when none are selected. A Track found through overlapping folders appears once. Scanning does not run automatically.
+
+## Music folder
+
+A folder anywhere on the SD card that the user ticked to be included in the next scan. The selection is remembered until changed.
 
 ## Queue
 

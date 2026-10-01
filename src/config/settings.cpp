@@ -64,6 +64,10 @@ bool set_key(Settings& settings, const ConfigEntry& entry) {
       return parse_bool(value, settings.search_case_sensitive);
     } else if (key == "background_playback") {
       return parse_bool(value, settings.background_playback);
+    } else if (key == "theme") {
+      return parse_theme(value, settings.theme);
+    } else if (key == "seek_seconds") {
+      return parse_seek_seconds(value, settings.seek_seconds);
     }
   } else if (section == "controls") {
     std::string* target = nullptr;
@@ -105,7 +109,7 @@ bool set_key(Settings& settings, const ConfigEntry& entry) {
 
 Settings default_settings() {
   Settings settings;
-  settings.music_root = "sdmc:/3dmms/music/";
+  settings.music_root = "sdmc:/3dsmsc/music/";
   settings.scan_scope = ScanScope::Default;
   settings.force_full_scan = false;
   settings.exclude_hidden = true;
@@ -114,6 +118,8 @@ Settings default_settings() {
   settings.animation_speed = 1.0;
   settings.search_case_sensitive = false;
   settings.background_playback = true;
+  settings.theme = Theme::Dark;
+  settings.seek_seconds = 10;
   settings.play_pause_button = "A";
   settings.back_button = "B";
   settings.next_button = "X";
@@ -124,6 +130,45 @@ Settings default_settings() {
   settings.volume_up_button = "R";
   settings.exit_button = "START";
   return settings;
+}
+
+namespace {
+constexpr int seek_step_options[] = {5, 10, 15, 25};
+}
+
+bool parse_seek_seconds(std::string_view value, int& seconds) {
+  double parsed = 0.0;
+  if (!parse_double(value, parsed))
+    return false;
+  for (const int option : seek_step_options) {
+    if (parsed == static_cast<double>(option)) {
+      seconds = option;
+      return true;
+    }
+  }
+  return false;  // only the offered steps are valid
+}
+
+int next_seek_seconds(int current) {
+  const int count = static_cast<int>(sizeof(seek_step_options) / sizeof(seek_step_options[0]));
+  for (int index = 0; index < count; ++index) {
+    if (seek_step_options[index] == current)
+      return seek_step_options[(index + 1) % count];
+  }
+  return seek_step_options[0];
+}
+
+bool parse_theme(std::string_view value, Theme& theme) {
+  const std::string normalized = unquote(value);
+  if (normalized == "dark") {
+    theme = Theme::Dark;
+    return true;
+  }
+  if (normalized == "light") {
+    theme = Theme::Light;
+    return true;
+  }
+  return false;
 }
 
 bool parse_scan_scope(std::string_view value, ScanScope& scope) {

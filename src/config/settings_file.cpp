@@ -54,6 +54,8 @@ bool save_settings_file(const std::string& path, const Settings& settings, std::
   output << "search_case_sensitive = " << (settings.search_case_sensitive ? "true" : "false")
          << '\n';
   output << "background_playback = " << (settings.background_playback ? "true" : "false") << '\n';
+  output << "theme = \"" << (settings.theme == Theme::Light ? "light" : "dark") << "\"\n";
+  output << "seek_seconds = " << settings.seek_seconds << '\n';
   output << "[controls]\n";
   output << "play_pause = ";
   write_string(output, settings.play_pause_button);

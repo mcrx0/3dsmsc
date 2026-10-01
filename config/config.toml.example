@@ -1,5 +1,5 @@
 [library]
-music_root = "sdmc:/3dmms/music/"
+music_root = "sdmc:/3dsmsc/music/"
 scan_scope = "default"
 last_selected_root = ""
 force_full_scan = false
@@ -11,6 +11,8 @@ animation_enabled = true
 animation_speed = 1.0
 search_case_sensitive = false
 background_playback = true
+theme = "dark"  # "dark" or "light"
+seek_seconds = 10  # seek button step: 5, 10, 15 or 25
 
 [controls]
 play_pause = "A"

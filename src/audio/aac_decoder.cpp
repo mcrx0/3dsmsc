@@ -236,6 +236,10 @@ bool AacDecoder::decode_raw(std::int16_t* output, std::size_t output_capacity, s
     }
     if (raw_pending_.empty())
       return false;
+    // Nothing decoded and nothing consumed: drop a byte to resynchronise, or a corrupt stream
+    // would spin here forever.
+    if (frame_info.bytesconsumed == 0)
+      raw_pending_.erase(raw_pending_.begin());
   }
 }
 

@@ -69,3 +69,19 @@ Before distributing a build:
 ## Assets
 
 `assets/main_ui.jpg` is a reference image. Runtime artwork is loaded from detected sidecar files through the citro3d texture importer; keep artwork dimensions and file sizes bounded for 3DS memory limits.
+
+## 3DS build in a container (no devkitPro install)
+
+If `apt.devkitpro.org` is unreachable or you prefer not to install devkitPro, build with the
+official image. The script installs `librsvg2-2`/`libcairo2` inside the container for icon
+generation, and the finished package is copied to `dist/3dsmsc.3dsx`.
+
+```sh
+podman run --rm -v "$PWD":/src -w /src docker.io/devkitpro/devkitarm sh -c '
+  apt-get update -qq && apt-get install -y -qq librsvg2-2 libcairo2
+  export DEVKITPRO=/opt/devkitpro DEVKITARM=/opt/devkitpro/devkitARM
+  export PATH=$DEVKITPRO/tools/bin:$DEVKITARM/bin:$PATH
+  cmake -S . -B build/3ds -G Ninja -DBUILD_3DS=ON -DBUILD_TESTING=OFF \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/3DS.cmake
+  cmake --build build/3ds'
+```
