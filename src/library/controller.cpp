@@ -58,8 +58,11 @@ bool LibraryController::scan_roots(const std::vector<std::string>& roots,
         status_ = error;
         return false;
       }
-      if (first_error.empty())
-        first_error = root + ": " + error;
+      if (first_error.empty()) {
+        first_error = root;
+        first_error += ": ";
+        first_error += error;
+      }
       continue;
     }
     // Selected folders may overlap (a folder and one of its sub-folders).
@@ -80,6 +83,15 @@ bool LibraryController::scan_roots(const std::vector<std::string>& roots,
                 : "Library ready: " + std::to_string(library_.tracks.size()) + " tracks";
   if (!first_error.empty() && !library_.tracks.empty())
     status_ += " (" + first_error + ")";
+  return true;
+}
+
+bool LibraryController::adopt_cached(LibraryIndex index) {
+  if (index.tracks.empty())
+    return false;
+  library_ = std::move(index);
+  library_.state = ScanState::Ready;
+  status_ = "Library ready: " + std::to_string(library_.tracks.size()) + " tracks (saved)";
   return true;
 }
 

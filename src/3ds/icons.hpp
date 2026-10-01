@@ -19,6 +19,9 @@ enum class IconId : int {
   Scan,
   SeekBack,
   SeekForward,
+  Shuffle,
+  RepeatOne,
+  Headphones,
 };
 
 }

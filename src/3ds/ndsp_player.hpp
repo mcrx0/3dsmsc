@@ -10,28 +10,38 @@
 
 #include "3dsmsc/audio/aac_decoder.hpp"
 #include "3dsmsc/audio/decoder.hpp"
+#include "3dsmsc/audio/equalizer.hpp"
 #include "3dsmsc/audio/flac_decoder.hpp"
 #include "3dsmsc/audio/mp3_decoder.hpp"
 #include "3dsmsc/audio/playback.hpp"
+#include "3dsmsc/audio/player.hpp"
 #include "3dsmsc/library/track.hpp"
 
 namespace threedsmsc {
 
-class NdspAudioPlayer {
+class NdspAudioPlayer final : public AudioPlayer {
  public:
+  // Starts the DSP. False when it cannot (see error()); the app then runs without sound.
   bool init();
   void shutdown();
-  bool load(const Track& track);
-  void play();
-  void pause();
-  void stop();
-  void update();
+  bool available() const override { return initialized_; }
+  bool load(const Track& track) override;
+  void play() override;
+  void pause() override;
+  void stop() override;
+  void update() override;
   void set_volume(float volume);
   void set_background_playback(bool enabled);
-  bool seek(std::int64_t delta_ms);
-  PlaybackSnapshot snapshot() const;
+  // Takes effect on the next audio block; safe to call while playing.
+  void set_equalizer(bool enabled, const std::int8_t* gains);
+  bool seek(std::int64_t delta_ms) override;
+  PlaybackSnapshot snapshot() const override;
   // Why init() or the last load() failed, in words fit for the status line.
-  const std::string& error() const { return error_; }
+  const std::string& error() const override { return error_; }
+  // Asks the DSP whether headphones are plugged in. A service call, so poll it about once a
+  // second from the UI thread rather than every frame.
+  void poll_headphones();
+  bool headphones() const { return headphones_; }
   Result init_result() const { return init_result_; }
 
  private:
@@ -48,8 +58,15 @@ class NdspAudioPlayer {
   // FrameReady when the slot was filled, EndOfStream at the end of the track, else Error.
   DecodeResult fill_buffer(std::size_t slot);
   bool apply_seek();
+  // Waits until every queued buffer has played, so a track's tail is not cut off.
+  void drain_queued_audio();
+  // Records how the track ended (finished, or failed) when the worker stops on its own.
+  void finish_track(DecodeResult result);
+  // Copies one decoded block into destination as stereo, applying the equalizer.
+  void append_block(std::int16_t* destination, std::size_t frames, std::uint16_t channels);
   void join_worker();
   void apply_volume();
+  void refresh_equalizer();
 
   Thread thread_ = nullptr;
   ndspWaveBuf buffers_[buffer_count] = {};
@@ -70,8 +87,17 @@ class NdspAudioPlayer {
   std::uint32_t sample_rate_ = 0;
   std::uint16_t channels_ = 0;
   float volume_ = 0.8f;
+  // The UI thread writes these and bumps eq_revision_ last; the worker reconfigures its filters
+  // when it sees a new revision.
+  volatile bool eq_enabled_ = false;
+  volatile std::int8_t eq_gains_[eq_band_count] = {};
+  volatile std::uint32_t eq_revision_ = 1;
+  std::uint32_t eq_applied_revision_ = 0;
+  std::uint32_t eq_applied_rate_ = 0;
+  Equalizer equalizer_;
   bool background_playback_ = true;
   bool initialized_ = false;
+  bool headphones_ = false;
   Result init_result_ = 0;
   std::string error_;
 };

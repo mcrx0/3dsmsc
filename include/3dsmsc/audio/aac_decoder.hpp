@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "3dsmsc/audio/decoder.hpp"
+#include "3dsmsc/util/unique_file.hpp"
 
 namespace threedsmsc {
 
@@ -23,6 +24,8 @@ class AacDecoder final : public AudioDecoder {
 
  private:
   static int mp4_read_callback(std::int64_t offset, void* buffer, std::size_t size, void* token);
+  // Opens a FAAD decoder configured for 16-bit output; false if FAAD cannot start.
+  bool open_faad();
   bool open_mp4(std::uint64_t file_size);
   bool open_raw();
   bool decode_mp4(std::int16_t* output, std::size_t output_capacity, std::size_t& written,
@@ -30,7 +33,7 @@ class AacDecoder final : public AudioDecoder {
   bool decode_raw(std::int16_t* output, std::size_t output_capacity, std::size_t& written,
                   PcmBlockInfo& info);
 
-  std::FILE* file_ = nullptr;
+  UniqueFile file_;
   std::string path_;
   NeAACDecHandle faad_ = nullptr;
   MP4D_demux_t mp4_ = {};

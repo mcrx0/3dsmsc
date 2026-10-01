@@ -18,6 +18,8 @@ class LibraryController {
   bool scan(const ScanCallbacks& callbacks = {});
   bool scan_root(const std::string& root, const ScanCallbacks& callbacks = {});
   bool scan_roots(const std::vector<std::string>& roots, const ScanCallbacks& callbacks = {});
+  // Uses a library loaded from the cache instead of scanning. Ignored when it has no tracks.
+  bool adopt_cached(LibraryIndex index);
   void set_selected_root(const std::string& root);
   // Folders to scan; an empty list scans the configured default folder.
   void set_selected_roots(std::vector<std::string> roots);

@@ -48,13 +48,22 @@ add_library(3dsmsc_core STATIC
   src/audio/flac_decoder.cpp
   src/audio/minimp4_impl.cpp
   src/audio/aac_decoder.cpp
+  src/audio/equalizer.cpp
   src/config/settings.cpp
   src/config/settings_file.cpp
   src/library/track.cpp
   src/library/library_index.cpp
+  src/library/library_cache.cpp
   src/library/browse_index.cpp
   src/ui/browse_navigator.cpp
+  src/ui/equalizer_editor.cpp
+  src/ui/help_text.cpp
   src/library/metadata.cpp
+  src/library/tag_flac.cpp
+  src/library/tag_id3.cpp
+  src/library/tag_mp3.cpp
+  src/library/tag_mp4.cpp
+  src/library/tag_text.cpp
   src/library/artwork.cpp
   src/library/controller.cpp
   src/library/folder_browser.cpp
@@ -63,6 +72,7 @@ add_library(3dsmsc_core STATIC
   src/library/scanner.cpp
   src/queue/playback_queue.cpp
   src/queue/queue_file.cpp
+  src/playback/playback_controller.cpp
 )
 
 target_include_directories(3dsmsc_core
@@ -80,8 +90,11 @@ target_link_libraries(3dsmsc_core PUBLIC faad2_decoder)
 
 if(BUILD_TESTING)
   enable_testing()
-  add_executable(3dsmsc_tests tests/unit/core_tests.cpp)
+  file(GLOB TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/unit/*.cpp")
+  add_executable(3dsmsc_tests ${TEST_SOURCES})
   target_link_libraries(3dsmsc_tests PRIVATE 3dsmsc_core)
+  # The tests are built from assert(); a Release build must not compile them away.
+  target_compile_options(3dsmsc_tests PRIVATE -UNDEBUG)
   target_compile_options(3dsmsc_tests PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic>
   )
@@ -128,10 +141,16 @@ if(BUILD_3DS)
 
   add_executable(3dsmsc-3ds
     src/3ds/main.cpp
+    src/3ds/app.cpp
+    src/3ds/app_input.cpp
+    src/3ds/app_panels.cpp
+    src/3ds/app_library.cpp
     src/3ds/cassette_renderer.cpp
     src/3ds/ndsp_player.cpp
   )
   target_include_directories(3dsmsc-3ds PRIVATE "${LIBCTRU_INCLUDE_DIR}")
+  # The About screen shows this, so there is one place to bump the version.
+  target_compile_definitions(3dsmsc-3ds PRIVATE APP_VERSION="${APP_VERSION}")
   target_link_libraries(3dsmsc-3ds PRIVATE 3dsmsc_core "${LIBCTRO2D_LIBRARY}" "${LIBCTRO3D_LIBRARY}" "${LIBCTRU_LIBRARY}" m)
   target_compile_options(3dsmsc-3ds PRIVATE
     $<$<CXX_COMPILER_ID:GNU>:-Wall;-Wextra;-fno-exceptions;-fno-rtti>

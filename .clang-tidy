@@ -1,19 +1,65 @@
+# Static analysis for all first-party code: the portable modules, include/, and src/3ds/ (the
+# last one checked against the fake headers in tools/host_harness/stubs).
+# Run by CI and by scripts/check-quality.sh. Every check here is kept because it finds real
+# problems in this codebase; checks that only restated the style (braces, magic numbers in
+# binary-format parsers, pointer arithmetic over decoded bytes) were removed on purpose.
+# Disabled on purpose: bugprone-easily-swappable-parameters (it flags every pair of sizes),
+# bugprone-signed-char-misuse (equalizer gains are int8_t signed decibels, not characters),
+# concurrency-mt-unsafe (strerror and readdir are only used from the UI thread), and
+# clang-analyzer-optin.performance.Padding (the view and the app are single instances, where
+# readable field order matters more than a few dozen bytes).
 Checks: >
   -*,
   bugprone-*,
-  cert-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-signed-char-misuse,
   clang-analyzer-*,
+  -clang-analyzer-optin.performance.Padding,
   concurrency-*,
-  cppcoreguidelines-*,
+  -concurrency-mt-unsafe,
   performance-*,
-  portability-*,
-  readability-*,
-  -readability-identifier-length
-WarningsAsErrors: ''
-HeaderFilterRegex: '^(include|src|tests)/'
+  cppcoreguidelines-narrowing-conversions,
+  cppcoreguidelines-pro-type-member-init,
+  readability-container-data-pointer,
+  readability-else-after-return,
+  readability-function-cognitive-complexity,
+  readability-identifier-naming,
+  readability-implicit-bool-conversion,
+  readability-isolate-declaration
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^(include|src)/'
 FormatStyle: file
 CheckOptions:
-  - key: readability-braces-around-statements
-    value: 'true'
-  - key: readability-function-cognitive-complexity
-    value: '30'
+  # A function that needs more than this is doing too much: split it.
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '25'
+  # Naming (docs/coding-standards.md): types PascalCase; functions, variables, and constants
+  # snake_case; private data members end in an underscore; enum class values PascalCase.
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.MethodCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: lower_case
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: _
+  - key: readability-identifier-naming.ClassMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase

@@ -13,10 +13,10 @@ enum class PlaybackState {
 };
 
 struct PlaybackSnapshot {
-  PlaybackState state;
-  std::uint64_t position_ms;
-  std::uint32_t sample_rate;
-  std::uint16_t channels;
+  PlaybackState state = PlaybackState::Stopped;
+  std::uint64_t position_ms = 0;
+  std::uint32_t sample_rate = 0;
+  std::uint16_t channels = 0;
 };
 
 }

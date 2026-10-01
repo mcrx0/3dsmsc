@@ -8,6 +8,11 @@ The host build requires:
 - Ninja or Make;
 - a C++17 compiler.
 
+The 3DS build also needs Python 3 plus `librsvg2` and `libcairo2` (for example
+`sudo apt install librsvg2-2 libcairo2`): `scripts/build-icons.py` rasterizes `assets/icons/*.svg` into
+the icon sheet that `tex3ds` packs into the `.3dsx`. Without Python or `tex3ds` the app still builds,
+with text labels instead of icons.
+
 ```sh
 cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
 cmake --build build
@@ -54,21 +59,26 @@ The later CIA target will be added after the `.3dsx` path is validated on hardwa
 
 ## Continuous integration
 
-`.github/workflows/build.yml` runs the host test suite and formatting checks, then builds and verifies the `.3dsx` package with devkitPro. The workflow uploads the package as the `3dsmsc-3dsx` artifact.
+`.github/workflows/build.yml` runs the host test suite and a `clang-format` check of every project source file, then builds the `.3dsx` with devkitPro, runs the stack-usage check, and verifies the package. The workflow uploads the package as the `3dsmsc-3dsx` artifact.
 
 ## Release validation
 
 Before distributing a build:
 
 1. Run the host tests and 3DS build locally.
-2. Copy the generated `.3dsx` to an SD card and test on New Nintendo 3DS hardware.
-3. Verify MP3, AAC/M4A/MP4, and FLAC playback, seeking, queue navigation, search, albums, artwork, and lid/sleep behavior.
+2. Copy the generated `.3dsx` to an SD card and test on both New and Old Nintendo 3DS hardware. The Old 3DS (one 268 MHz core, less memory) is the worst case for stalls and stack or memory limits.
+3. Walk through the smoke tests in `docs/testing.md`: scanning, saved library, MP3/AAC/M4A/MP4/FLAC playback, seeking, repeat and shuffle, the equalizer, search, browse, and lid/sleep behavior.
 4. Test corrupted, unsupported, hidden, and large library files.
 5. Confirm `docs/third-party-licenses.md` and the FAAD2 GPL distribution requirements are included.
 
 ## Assets
 
-`assets/main_ui.jpg` is a reference image. Runtime artwork is loaded from detected sidecar files through the citro3d texture importer; keep artwork dimensions and file sizes bounded for 3DS memory limits.
+`assets/main_ui.jpg` is a visual reference for the cassette screen. `assets/icon.png` is the 48x48
+launcher icon, generated from `assets/icon.svg` by `scripts/build-icons.py` in its app-icon mode (run
+it by hand after editing the SVG, and commit the PNG). The UI icons are editable SVGs in `assets/icons/`: change a file, rebuild, and the icon sheet is
+regenerated. Icons are drawn white and tinted at runtime, and `assets/icons/order.txt` fixes their
+order, which must match `IconId` in `src/3ds/icons.hpp`. Cover art found in a library is recorded
+but not drawn yet.
 
 ## 3DS build in a container (no devkitPro install)
 
@@ -85,3 +95,26 @@ podman run --rm -v "$PWD":/src -w /src docker.io/devkitpro/devkitarm sh -c '
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/3DS.cmake
   cmake --build build/3ds'
 ```
+
+## Quality checks
+
+```sh
+scripts/check-quality.sh     # clang-format, host tests, clang-tidy (needs clang-format and clang-tidy)
+```
+
+CI runs the same script. The rules are in [coding-standards.md](coding-standards.md).
+
+## Stack usage check
+
+The 3DS main thread has only a 32 KB stack (libctru's default `__stacksize__`), so a large local
+buffer or object in `main()` or in anything it calls overflows on the console while a PC, with an
+8 MB stack, never notices. Run this after changing code that runs on the main thread:
+
+```sh
+scripts/check-stack-usage.sh        # fails if any single frame exceeds 8 KB
+# or, without a local devkitPro:
+podman run --rm -v "$PWD":/src -w /src docker.io/devkitpro/devkitarm bash scripts/check-stack-usage.sh
+```
+
+Large objects belong on the heap (the audio player, which holds a 16 KB decode buffer, is
+heap-allocated for this reason). The audio thread has its own 64 KB stack.

@@ -23,8 +23,17 @@ AacDecoder::~AacDecoder() {
     NeAACDecClose(faad_);
   if (mp4_open_)
     MP4D_close(&mp4_);
-  if (file_ != nullptr)
-    std::fclose(file_);
+}
+
+bool AacDecoder::open_faad() {
+  faad_ = NeAACDecOpen();
+  if (faad_ == nullptr)
+    return false;
+  NeAACDecConfiguration* configuration = NeAACDecGetCurrentConfiguration(faad_);
+  configuration->outputFormat = FAAD_FMT_16BIT;
+  configuration->downMatrix = 0;
+  NeAACDecSetConfiguration(faad_, configuration);
+  return true;
 }
 
 bool AacDecoder::open(const Track& track) {
@@ -40,33 +49,22 @@ bool AacDecoder::open(const Track& track) {
     MP4D_close(&mp4_);
     mp4_open_ = false;
   }
-  if (file_ != nullptr) {
-    std::fclose(file_);
-    file_ = nullptr;
-  }
   path_ = track.path;
-  file_ = std::fopen(path_.c_str(), "rb");
+  file_ = open_file(path_, "rb");  // replacing the handle closes any previous file
   if (file_ == nullptr)
     return false;
-  faad_ = NeAACDecOpen();
-  if (faad_ == nullptr) {
-    std::fclose(file_);
-    file_ = nullptr;
+  if (!open_faad()) {
+    file_.reset();
     return false;
   }
-  NeAACDecConfiguration* configuration = NeAACDecGetCurrentConfiguration(faad_);
-  configuration->outputFormat = FAAD_FMT_16BIT;
-  configuration->downMatrix = 0;
-  NeAACDecSetConfiguration(faad_, configuration);
-  const bool opened = track.format == AudioFormat::Aac ? open_raw() : open_mp4(file_size(file_));
+  const bool opened =
+      track.format == AudioFormat::Aac ? open_raw() : open_mp4(file_size(file_.get()));
   if (!opened) {
     NeAACDecClose(faad_);
     faad_ = nullptr;
     if (mp4_open_)
       MP4D_close(&mp4_);
-    if (file_ != nullptr)
-      std::fclose(file_);
-    file_ = nullptr;
+    file_.reset();
   }
   return opened;
 }
@@ -78,19 +76,14 @@ void AacDecoder::reset() {
   if (faad_ == nullptr || file_ == nullptr)
     return;
   NeAACDecClose(faad_);
-  faad_ = NeAACDecOpen();
-  if (faad_ == nullptr)
+  if (!open_faad())
     return;
-  NeAACDecConfiguration* configuration = NeAACDecGetCurrentConfiguration(faad_);
-  configuration->outputFormat = FAAD_FMT_16BIT;
-  configuration->downMatrix = 0;
-  NeAACDecSetConfiguration(faad_, configuration);
   if (mp4_open_) {
     MP4D_close(&mp4_);
-    std::fseek(file_, 0, SEEK_SET);
-    open_mp4(file_size(file_));
+    std::fseek(file_.get(), 0, SEEK_SET);
+    open_mp4(file_size(file_.get()));
   } else {
-    std::fseek(file_, 0, SEEK_SET);
+    std::fseek(file_.get(), 0, SEEK_SET);
     open_raw();
   }
 }
@@ -123,7 +116,7 @@ DecodeResult AacDecoder::decode(std::int16_t* output, std::size_t output_capacit
 bool AacDecoder::open_mp4(std::uint64_t size) {
   mp4_duration_ms_ = 0;
   sample_index_ = 0;
-  if (MP4D_open(&mp4_, mp4_read_callback, file_, static_cast<std::int64_t>(size)) != 1)
+  if (MP4D_open(&mp4_, mp4_read_callback, file_.get(), static_cast<std::int64_t>(size)) != 1)
     return false;
   mp4_open_ = true;
   if (mp4_.timescale != 0) {
@@ -154,7 +147,8 @@ bool AacDecoder::open_mp4(std::uint64_t size) {
 
 bool AacDecoder::open_raw() {
   raw_pending_.resize(raw_buffer_bytes);
-  const std::size_t bytes_read = std::fread(raw_pending_.data(), 1, raw_pending_.size(), file_);
+  const std::size_t bytes_read =
+      std::fread(raw_pending_.data(), 1, raw_pending_.size(), file_.get());
   raw_pending_.resize(bytes_read);
   unsigned long sample_rate = 0;
   unsigned char channels = 0;
@@ -166,7 +160,8 @@ bool AacDecoder::open_raw() {
       init_result == 0 ? 0 : static_cast<std::size_t>((init_result + 7) / 8);
   if (consumed > raw_pending_.size())
     return false;
-  raw_pending_.erase(raw_pending_.begin(), raw_pending_.begin() + consumed);
+  raw_pending_.erase(raw_pending_.begin(),
+                     raw_pending_.begin() + static_cast<std::ptrdiff_t>(consumed));
   sample_rate_ = static_cast<std::uint32_t>(sample_rate);
   channels_ = channels;
   open_ = true;
@@ -182,10 +177,10 @@ bool AacDecoder::decode_mp4(std::int16_t* output, std::size_t output_capacity, s
     const MP4D_file_offset_t offset =
         MP4D_frame_offset(&mp4_, track_, sample_index_, &frame_bytes, &timestamp, &duration);
     ++sample_index_;
-    if (frame_bytes == 0 || std::fseek(file_, static_cast<long>(offset), SEEK_SET) != 0)
+    if (frame_bytes == 0 || std::fseek(file_.get(), static_cast<long>(offset), SEEK_SET) != 0)
       return false;
     access_unit_.resize(frame_bytes);
-    if (std::fread(access_unit_.data(), 1, frame_bytes, file_) != frame_bytes)
+    if (std::fread(access_unit_.data(), 1, frame_bytes, file_.get()) != frame_bytes)
       return false;
     NeAACDecFrameInfo frame_info = {};
     const void* pcm = NeAACDecDecode(faad_, &frame_info, access_unit_.data(), frame_bytes);
@@ -210,10 +205,13 @@ bool AacDecoder::decode_raw(std::int16_t* output, std::size_t output_capacity, s
                             PcmBlockInfo& info) {
   while (true) {
     if (raw_pending_.size() < FAAD_MIN_STREAMSIZE) {
-      std::vector<std::uint8_t> additional(raw_buffer_bytes);
-      const std::size_t bytes_read = std::fread(additional.data(), 1, additional.size(), file_);
-      additional.resize(bytes_read);
-      raw_pending_.insert(raw_pending_.end(), additional.begin(), additional.end());
+      // Read straight into the pending buffer: a temporary 64 KB buffer here was allocated and
+      // zero-filled on the audio thread every time the input ran low.
+      const std::size_t old_size = raw_pending_.size();
+      raw_pending_.resize(old_size + raw_buffer_bytes);
+      const std::size_t bytes_read =
+          std::fread(raw_pending_.data() + old_size, 1, raw_buffer_bytes, file_.get());
+      raw_pending_.resize(old_size + bytes_read);
       if (bytes_read == 0 && raw_pending_.empty())
         return false;
     }
@@ -221,7 +219,9 @@ bool AacDecoder::decode_raw(std::int16_t* output, std::size_t output_capacity, s
     const void* pcm = NeAACDecDecode(faad_, &frame_info, raw_pending_.data(),
                                      static_cast<unsigned long>(raw_pending_.size()));
     if (frame_info.bytesconsumed > 0 && frame_info.bytesconsumed <= raw_pending_.size()) {
-      raw_pending_.erase(raw_pending_.begin(), raw_pending_.begin() + frame_info.bytesconsumed);
+      raw_pending_.erase(
+          raw_pending_.begin(),
+          raw_pending_.begin() + static_cast<std::ptrdiff_t>(frame_info.bytesconsumed));
     }
     if (pcm != nullptr && frame_info.error == 0 && frame_info.samples > 0) {
       if (frame_info.channels != 1 && frame_info.channels != 2)

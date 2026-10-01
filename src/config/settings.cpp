@@ -13,11 +13,11 @@ namespace {
 
 std::string trim(std::string_view value) {
   std::size_t first = 0;
-  while (first < value.size() && std::isspace(static_cast<unsigned char>(value[first]))) {
+  while (first < value.size() && std::isspace(static_cast<unsigned char>(value[first])) != 0) {
     ++first;
   }
   std::size_t last = value.size();
-  while (last > first && std::isspace(static_cast<unsigned char>(value[last - 1]))) {
+  while (last > first && std::isspace(static_cast<unsigned char>(value[last - 1])) != 0) {
     --last;
   }
   return std::string(value.substr(first, last - first));
@@ -31,75 +31,101 @@ std::string unquote(std::string_view value) {
   return trimmed;
 }
 
+// Removes a trailing `# comment`, ignoring any `#` inside a quoted string (a path may contain one).
+std::string strip_inline_comment(std::string_view value) {
+  bool in_quotes = false;
+  for (std::size_t index = 0; index < value.size(); ++index) {
+    if (value[index] == '"')
+      in_quotes = !in_quotes;
+    else if (value[index] == '#' && !in_quotes)
+      return trim(value.substr(0, index));
+  }
+  return trim(value);
+}
+
 struct ConfigEntry {
   std::string_view section;
   std::string_view key;
   std::string_view value;
 };
 
+// One row per setting: where it lives in the file, and how its value is read into Settings.
+using ValueParser = bool (*)(Settings& settings, std::string_view value);
+
+struct SettingRule {
+  std::string_view section;
+  std::string_view key;
+  ValueParser parse;
+};
+
+const SettingRule setting_rules[] = {
+    {"library", "music_root",
+     [](Settings& s, std::string_view v) {
+       s.music_root = unquote(v);
+       return true;
+     }},
+    {"library", "last_selected_root",
+     [](Settings& s, std::string_view v) {
+       s.last_selected_root = unquote(v);
+       return true;
+     }},
+    {"library", "scan_scope",
+     [](Settings& s, std::string_view v) { return parse_scan_scope(v, s.scan_scope); }},
+    {"library", "force_full_scan",
+     [](Settings& s, std::string_view v) { return parse_bool(v, s.force_full_scan); }},
+    {"library", "exclude_hidden",
+     [](Settings& s, std::string_view v) { return parse_bool(v, s.exclude_hidden); }},
+    {"player", "volume", [](Settings& s, std::string_view v) { return parse_double(v, s.volume); }},
+    {"player", "animation_enabled",
+     [](Settings& s, std::string_view v) { return parse_bool(v, s.animation_enabled); }},
+    {"player", "animation_speed",
+     [](Settings& s, std::string_view v) { return parse_double(v, s.animation_speed); }},
+    {"player", "search_case_sensitive",
+     [](Settings& s, std::string_view v) { return parse_bool(v, s.search_case_sensitive); }},
+    {"player", "background_playback",
+     [](Settings& s, std::string_view v) { return parse_bool(v, s.background_playback); }},
+    {"player", "theme", [](Settings& s, std::string_view v) { return parse_theme(v, s.theme); }},
+    {"player", "battery_display",
+     [](Settings& s, std::string_view v) { return parse_battery_display(v, s.battery_display); }},
+    {"player", "repeat",
+     [](Settings& s, std::string_view v) { return parse_repeat_mode(v, s.repeat); }},
+    {"player", "shuffle", [](Settings& s, std::string_view v) { return parse_bool(v, s.shuffle); }},
+    {"player", "seek_seconds",
+     [](Settings& s, std::string_view v) { return parse_seek_seconds(v, s.seek_seconds); }},
+    {"equalizer", "enabled",
+     [](Settings& s, std::string_view v) { return parse_bool(v, s.eq_enabled); }},
+    {"equalizer", "bands",
+     [](Settings& s, std::string_view v) { return parse_eq_bands(v, s.eq_gains); }},
+};
+
+// The [controls] section: a button name per action, all plain strings.
+struct ButtonRule {
+  std::string_view key;
+  std::string Settings::*member;
+};
+
+const ButtonRule button_rules[] = {
+    {"play_pause", &Settings::play_pause_button},
+    {"back", &Settings::back_button},
+    {"next", &Settings::next_button},
+    {"previous", &Settings::previous_button},
+    {"seek_back", &Settings::seek_back_button},
+    {"seek_forward", &Settings::seek_forward_button},
+    {"volume_down", &Settings::volume_down_button},
+    {"volume_up", &Settings::volume_up_button},
+    {"exit", &Settings::exit_button},
+};
+
+// Returns false only for a known key whose value is invalid; unknown keys are ignored.
 bool set_key(Settings& settings, const ConfigEntry& entry) {
-  const std::string_view section = entry.section;
-  const std::string_view key = entry.key;
-  const std::string_view value = entry.value;
-  if (section == "library") {
-    if (key == "music_root") {
-      settings.music_root = unquote(value);
-    } else if (key == "last_selected_root") {
-      settings.last_selected_root = unquote(value);
-    } else if (key == "scan_scope") {
-      return parse_scan_scope(value, settings.scan_scope);
-    } else if (key == "force_full_scan") {
-      return parse_bool(value, settings.force_full_scan);
-    } else if (key == "exclude_hidden") {
-      return parse_bool(value, settings.exclude_hidden);
-    }
-  } else if (section == "player") {
-    if (key == "volume") {
-      return parse_double(value, settings.volume);
-    } else if (key == "animation_enabled") {
-      return parse_bool(value, settings.animation_enabled);
-    } else if (key == "animation_speed") {
-      return parse_double(value, settings.animation_speed);
-    } else if (key == "search_case_sensitive") {
-      return parse_bool(value, settings.search_case_sensitive);
-    } else if (key == "background_playback") {
-      return parse_bool(value, settings.background_playback);
-    } else if (key == "theme") {
-      return parse_theme(value, settings.theme);
-    } else if (key == "seek_seconds") {
-      return parse_seek_seconds(value, settings.seek_seconds);
-    }
-  } else if (section == "controls") {
-    std::string* target = nullptr;
-    if (key == "play_pause") {
-      target = &settings.play_pause_button;
-    }
-    if (key == "back") {
-      target = &settings.back_button;
-    }
-    if (key == "next") {
-      target = &settings.next_button;
-    }
-    if (key == "previous") {
-      target = &settings.previous_button;
-    }
-    if (key == "seek_back") {
-      target = &settings.seek_back_button;
-    }
-    if (key == "seek_forward") {
-      target = &settings.seek_forward_button;
-    }
-    if (key == "volume_down") {
-      target = &settings.volume_down_button;
-    }
-    if (key == "volume_up") {
-      target = &settings.volume_up_button;
-    }
-    if (key == "exit") {
-      target = &settings.exit_button;
-    }
-    if (target != nullptr) {
-      *target = unquote(value);
+  for (const SettingRule& rule : setting_rules) {
+    if (rule.section == entry.section && rule.key == entry.key)
+      return rule.parse(settings, entry.value);
+  }
+  if (entry.section == "controls") {
+    for (const ButtonRule& rule : button_rules) {
+      if (rule.key == entry.key)
+        settings.*rule.member = unquote(entry.value);
     }
   }
   return true;
@@ -119,7 +145,13 @@ Settings default_settings() {
   settings.search_case_sensitive = false;
   settings.background_playback = true;
   settings.theme = Theme::Dark;
+  settings.battery_display = BatteryDisplay::Icon;
+  settings.repeat = RepeatMode::All;  // the queue has always looped
+  settings.shuffle = false;
   settings.seek_seconds = 10;
+  settings.eq_enabled = false;
+  for (std::int8_t& gain : settings.eq_gains)
+    gain = 0;
   settings.play_pause_button = "A";
   settings.back_button = "B";
   settings.next_button = "X";
@@ -134,6 +166,79 @@ Settings default_settings() {
 
 namespace {
 constexpr int seek_step_options[] = {5, 10, 15, 25};
+}
+
+bool parse_repeat_mode(std::string_view value, RepeatMode& mode) {
+  const std::string normalized = unquote(value);
+  if (normalized == "off")
+    mode = RepeatMode::Off;
+  else if (normalized == "all")
+    mode = RepeatMode::All;
+  else if (normalized == "one")
+    mode = RepeatMode::One;
+  else
+    return false;
+  return true;
+}
+
+bool parse_battery_display(std::string_view value, BatteryDisplay& display) {
+  const std::string normalized = unquote(value);
+  for (const BatteryDisplay candidate :
+       {BatteryDisplay::Off, BatteryDisplay::Icon, BatteryDisplay::Percent}) {
+    if (normalized == battery_display_name(candidate)) {
+      display = candidate;
+      return true;
+    }
+  }
+  return false;
+}
+
+const char* battery_display_name(BatteryDisplay display) {
+  switch (display) {
+    case BatteryDisplay::Off:
+      return "off";
+    case BatteryDisplay::Percent:
+      return "percent";
+    case BatteryDisplay::Icon:
+      break;
+  }
+  return "icon";
+}
+
+BatteryDisplay next_battery_display(BatteryDisplay display) {
+  switch (display) {
+    case BatteryDisplay::Icon:
+      return BatteryDisplay::Percent;
+    case BatteryDisplay::Percent:
+      return BatteryDisplay::Off;
+    case BatteryDisplay::Off:
+      break;
+  }
+  return BatteryDisplay::Icon;
+}
+
+const char* repeat_mode_name(RepeatMode mode) {
+  switch (mode) {
+    case RepeatMode::Off:
+      return "off";
+    case RepeatMode::One:
+      return "one";
+    case RepeatMode::All:
+      break;
+  }
+  return "all";
+}
+
+RepeatMode next_repeat_mode(RepeatMode mode) {
+  switch (mode) {
+    case RepeatMode::Off:
+      return RepeatMode::All;
+    case RepeatMode::All:
+      return RepeatMode::One;
+    case RepeatMode::One:
+      break;
+  }
+  return RepeatMode::Off;
 }
 
 bool parse_seek_seconds(std::string_view value, int& seconds) {
@@ -156,6 +261,42 @@ int next_seek_seconds(int current) {
       return seek_step_options[(index + 1) % count];
   }
   return seek_step_options[0];
+}
+
+bool parse_eq_bands(std::string_view value, std::int8_t* gains) {
+  const std::string text = unquote(value);
+  std::int8_t parsed[10] = {};
+  std::size_t position = 0;
+  for (int band = 0; band < 10; ++band) {
+    if (position >= text.size())
+      return false;  // fewer than ten values
+    char* end = nullptr;
+    const long number = std::strtol(text.c_str() + position, &end, 10);
+    if (end == text.c_str() + position || number < -12 || number > 12)
+      return false;
+    parsed[band] = static_cast<std::int8_t>(number);
+    position = static_cast<std::size_t>(end - text.c_str());
+    if (band < 9) {
+      if (position >= text.size() || text[position] != ',')
+        return false;
+      ++position;
+    }
+  }
+  if (position != text.size())
+    return false;  // trailing characters or an eleventh value
+  for (int band = 0; band < 10; ++band)
+    gains[band] = parsed[band];
+  return true;
+}
+
+std::string format_eq_bands(const std::int8_t* gains) {
+  std::string text;
+  for (int band = 0; band < 10; ++band) {
+    if (band != 0)
+      text += ',';
+    text += std::to_string(static_cast<int>(gains[band]));
+  }
+  return text;
 }
 
 bool parse_theme(std::string_view value, Theme& theme) {
@@ -244,7 +385,7 @@ bool load_settings(std::istream& input, Settings& settings, std::string* error) 
       return false;
     }
     const std::string key = trim(std::string_view(content).substr(0, separator));
-    const std::string value = trim(std::string_view(content).substr(separator + 1));
+    const std::string value = strip_inline_comment(std::string_view(content).substr(separator + 1));
     if (!set_key(parsed, ConfigEntry{section, key, value})) {
       if (error != nullptr) {
         *error = "invalid value for ";

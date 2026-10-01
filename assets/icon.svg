@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Launcher icon (48x48). Shapes sit on whole pixels so they stay crisp at this size.
+       Regenerate assets/icon.png with scripts/build-icons.py in its app-icon mode. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF7A5E"/>
+      <stop offset="1" stop-color="#E5482F"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" fill="url(#tile)"/>
+  <!-- cassette body -->
+  <rect x="4" y="11" width="40" height="28" rx="4" fill="#FFF6E4"/>
+  <!-- label stripe -->
+  <rect x="9" y="13" width="14" height="2" rx="1" fill="#E5482F"/>
+  <!-- tape window with the two reels -->
+  <rect x="10" y="17" width="28" height="12" rx="6" fill="#2A1410"/>
+  <circle cx="18" cy="23" r="3.6" fill="#FFF6E4"/>
+  <circle cx="18" cy="23" r="1.5" fill="#2A1410"/>
+  <circle cx="30" cy="23" r="3.6" fill="#FFF6E4"/>
+  <circle cx="30" cy="23" r="1.5" fill="#2A1410"/>
+  <!-- the trapezoid base every cassette has -->
+  <path d="M14 39 L17 32 H31 L34 39 Z" fill="#2A1410"/>
+</svg>

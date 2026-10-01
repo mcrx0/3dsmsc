@@ -62,18 +62,24 @@ BrowseIndex build_browse_index(const LibraryIndex& library) {
             [&](std::size_t a, std::size_t b) { return key_less(keys[a], keys[b]); });
 
   BrowseIndex result;
+  // The keys are sorted, so a new artist or album can only differ from the one just before it.
+  // Comparing against that neighbour avoids lower-casing the previous names for every track.
+  const std::string* previous_artist = nullptr;
+  const std::string* previous_album = nullptr;
   for (const std::size_t position : order) {
     const SortKey& key = keys[position];
-    if (result.artists.empty() || lowercase(result.artists.back().name) != key.artist) {
+    if (previous_artist == nullptr || *previous_artist != key.artist) {
       result.artists.push_back({display[position].artist, result.albums.size(), 0});
+      previous_album = nullptr;  // a new artist always starts a new album
     }
     BrowseArtist& artist = result.artists.back();
-    if (artist.album_count == 0 ||
-        lowercase(result.albums.back().name) != key.album) {
+    if (previous_album == nullptr || *previous_album != key.album) {
       result.albums.push_back({display[position].album, result.artists.size() - 1, {}});
       ++artist.album_count;
     }
     result.albums.back().tracks.push_back(key.index);
+    previous_artist = &key.artist;
+    previous_album = &key.album;
   }
   return result;
 }
