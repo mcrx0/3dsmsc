@@ -341,7 +341,7 @@ void test_healthy_playback_resets_the_failure_count() {
 
 void test_missing_tags_are_read_when_a_track_is_loaded() {
   threedsmsc::Track bare = test::make_track("sdmc:/music/song.mp3", "sdmc:/music/song.mp3", "");
-  Rig rig({});
+  Rig rig(std::vector<std::string>{});
   rig.queue.set_tracks({bare});  // a queue restored from disk: the title is the path
   threedsmsc::TrackMetadata tags;
   tags.title = "Real Title";
