@@ -23,8 +23,8 @@ for source in "$root"/src/*/*.cpp; do
   "$devkitarm/bin/arm-none-eabi-g++" $flags -c "$source" -o "$(basename "$source" .cpp).o" 2>/dev/null
 done
 echo "Largest stack frames (bytes):"
-cat ./*.su | awk -F'\t' '{print $2"\t"$1}' | sort -rn | head -8
-worst=$(cat ./*.su | awk -F'\t' '{print $2}' | sort -rn | head -1)
+cat ./*.su | awk -F'\t' '{print $2"\t"$1}' | sort -rn | awk 'NR <= 8'
+worst=$(cat ./*.su | awk -F'\t' '{print $2}' | sort -rn | awk 'NR == 1')
 if [ "${worst:-0}" -gt "$limit" ]; then
   echo "FAIL: a frame of $worst bytes exceeds the $limit byte limit" >&2
   exit 1
