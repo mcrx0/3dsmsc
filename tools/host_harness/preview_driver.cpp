@@ -148,7 +148,7 @@ int main(int, char** argv) {
   ab.list_position = 0;
   ab.list_count = 5;
   ab.list_selected = 0;
-  ab.list_items = {"3DSMSC", "Version 0.4.2b", "An offline music player for the 3DS", "CREDITS",
+  ab.list_items = {"3DSMSC", "Version 0.5.1", "An offline music player for the 3DS", "CREDITS",
                    "Created by @mcrx0"};
   ab.list_check = {-2, -4, -4, -2, -4};
   ab.status = "B goes back";

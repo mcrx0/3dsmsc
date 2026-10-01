@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-project(3dsmsc VERSION 0.4.2 LANGUAGES C CXX)
+project(3dsmsc VERSION 0.5.1 LANGUAGES C CXX)
 
 set(APP_NAME "3dsmsc")
-set(APP_VERSION "0.4.2b")
+set(APP_VERSION "0.5.1")
 set(APP_MAINTAINER "@mcrx0")
 set(APP_DESCRIPTION "A lightweight offline music player for the Nintendo 3DS")
 
