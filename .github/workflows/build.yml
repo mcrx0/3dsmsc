@@ -1,50 +1,57 @@
 name: Build
 
+# Runs on every push to the monitor branch. Both jobs use the devkitPro container (Debian), so the
+# compiler, clang-format, and clang-tidy versions match what scripts/check-quality.sh was written
+# against; a newer distribution's clang-format would format the same code differently.
 on:
   push:
-  pull_request:
+    branches: [monitor]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   host:
+    name: Host checks
     runs-on: ubuntu-latest
+    container: devkitpro/devkitarm
     steps:
       - uses: actions/checkout@v4
-      - name: Configure
-        run: cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
-      - name: Build
-        run: cmake --build build
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
-      - name: Install analysis tools
-        run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy
-      - name: Check formatting, static analysis, and tests
+      - name: Install tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends clang-format clang-tidy cmake ninja-build g++ git
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Format, host tests, and static analysis
         run: bash scripts/check-quality.sh
 
   3ds:
+    name: Nintendo 3DS package
     needs: host
     runs-on: ubuntu-latest
+    container: devkitpro/devkitarm
     steps:
       - uses: actions/checkout@v4
-      - name: Install devkitPro
-        uses: devkitpro/devkitpro@v1
-        with:
-          packages: 3ds-dev
-      - name: Install icon renderer dependencies
-        run: sudo apt-get update && sudo apt-get install -y librsvg2-2 libcairo2
-      - name: Configure
+      - name: Install tools
         run: |
-          cmake -S . -B build/3ds -G Ninja \
-            -DBUILD_3DS=ON \
-            -DBUILD_TESTING=OFF \
-            -DCMAKE_TOOLCHAIN_FILE=cmake/3DS.cmake
+          apt-get update
+          apt-get install -y --no-install-recommends cmake ninja-build librsvg2-2 libcairo2
       - name: Build
-        run: cmake --build build/3ds
+        run: |
+          cmake -S . -B build/3ds -G Ninja -DBUILD_3DS=ON -DBUILD_TESTING=OFF \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/3DS.cmake
+          cmake --build build/3ds
       - name: Check main-thread stack usage
         run: bash scripts/check-stack-usage.sh
       - name: Verify package
         run: |
           test "$(head -c 4 build/3ds/3dsmsc.3dsx)" = "3DSX"
-          file build/3ds/3dsmsc.3dsx
+          test "$(head -c 4 dist/3dsmsc.3dsx)" = "3DSX"
+          ls -l build/3ds/3dsmsc.3dsx
       - uses: actions/upload-artifact@v4
         with:
           name: 3dsmsc-3dsx

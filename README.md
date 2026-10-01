@@ -9,7 +9,7 @@ controlling playback.
 ## App metadata
 
 - Name: `3dsmsc`
-- Version: `0.4.2b`
+- Version: `0.5.1`
 - Maintainer: `@mcrx0`
 - Description: `A lightweight offline music player for the Nintendo 3DS`
 
