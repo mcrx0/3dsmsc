@@ -4,6 +4,15 @@ Every third-party decoder, image library, font, or audio component must have its
 
 The project must not ship code with a license incompatible with the project distribution. Preserve required copyright notices and include the complete license text in the distribution.
 
+## 3DSMSC itself
+
+- License: GPL-3.0-or-later, in `LICENSE` at the repository root.
+- Why: FAAD2 is GPL-2.0-or-later, so the combined program that is distributed must be GPL. Version 3
+  is chosen because every other component (CC0, Unlicense/MIT-0, and the zlib-licensed libctru,
+  citro2d, and citro3d that the 3DS build links) is compatible with it, and "or later" keeps FAAD2's
+  own "or later" option available.
+- Anyone who distributes a `.3dsx` must also make the corresponding source available under the same terms.
+
 ## minimp3
 
 - Source: `third_party/minimp3/minimp3.h`

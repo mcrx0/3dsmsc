@@ -143,3 +143,10 @@ never notices.
 - [docs/adr/](docs/adr/): the decisions behind the design.
 - [CONTEXT.md](CONTEXT.md): the project's vocabulary.
 - [config/config.toml.example](config/config.toml.example): every runtime setting.
+
+## License
+
+3DSMSC is free software under the [GNU General Public License v3.0 or later](LICENSE). It bundles
+FAAD2 (GPL-2.0-or-later), minimp3 and minimp4 (CC0), and dr_flac (Unlicense / MIT-0), and the 3DS
+build links libctru, citro2d, and citro3d (zlib). The full list, with the reason for the choice, is
+in [docs/third-party-licenses.md](docs/third-party-licenses.md).
