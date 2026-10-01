@@ -46,11 +46,11 @@ The user selects a root or uses the configured default root. A scan is started o
 Go to Settings > Library > Full scan again
 ```
 
-`force_full_scan` is a user-requested action rather than an automatic background policy. The active scan scope is either the configured default root or the selected root.
+`force_full_scan` is a user-requested action rather than an automatic background policy. The scan covers the music folders the user ticked in the folder picker (Settings > Library > Music folders, or tap the library card on the home screen), saved in `sdmc:/3dsmsc/folders.txt`. With none ticked it covers the configured default root. Overlapping folders are scanned once per track, and a folder that no longer exists is reported without discarding the others.
 
 ## Configuration
 
-Compiled defaults are always available. `sdmc:/3dmms/config.toml` overrides the defaults using a deliberately small TOML subset:
+Compiled defaults are always available. `sdmc:/3dsmsc/config.toml` overrides the defaults using a deliberately small TOML subset:
 
 - sections: `library`, `player`, and `controls`;
 - string, boolean, and numeric scalar values;

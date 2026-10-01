@@ -21,8 +21,10 @@ struct Track {
   std::string artist;
   std::string album;
   std::string artwork_path;
-  std::uint64_t duration_ms;
-  AudioFormat format;
+  std::uint64_t duration_ms = 0;
+  std::uint16_t track_number = 0;
+  std::uint16_t disc_number = 0;
+  AudioFormat format = AudioFormat::Unknown;
 };
 
 AudioFormat format_from_path(std::string_view path);

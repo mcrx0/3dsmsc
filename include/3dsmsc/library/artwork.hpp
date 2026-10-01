@@ -14,6 +14,11 @@ class ArtworkLocator {
 
  private:
   FileSystem& filesystem_;
+  // Tracks of one album are visited in a row, so remembering the last folder's answer
+  // avoids listing it again for every track (slow on an SD card).
+  std::string cached_folder_;
+  std::string cached_artwork_;
+  bool has_cache_ = false;
 };
 
 }

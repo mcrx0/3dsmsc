@@ -83,7 +83,7 @@ bool LibraryScanner::scan_directory(const std::string& path, LibraryIndex& resul
       error = result.message;
       return false;
     }
-    Track track;
+    Track track{};
     track.path = full_path;
     track.format = format_from_path(full_path);
     TrackMetadata metadata{};
@@ -92,6 +92,8 @@ bool LibraryScanner::scan_directory(const std::string& path, LibraryIndex& resul
       track.artist = std::move(metadata.artist);
       track.album = std::move(metadata.album);
       track.duration_ms = metadata.duration_ms;
+      track.track_number = metadata.track_number;
+      track.disc_number = metadata.disc_number;
     }
     if (artwork_locator_ != nullptr) {
       artwork_locator_->find(track.path, track.artwork_path);

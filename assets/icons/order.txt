@@ -1,0 +1,15 @@
+play
+pause
+prev
+next
+search
+browse
+queue
+settings
+folder
+back
+volume
+note
+scan
+seek_back
+seek_forward

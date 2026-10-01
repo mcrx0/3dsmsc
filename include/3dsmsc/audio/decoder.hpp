@@ -26,6 +26,8 @@ class AudioDecoder {
   virtual DecodeResult decode(std::int16_t* output, std::size_t output_capacity,
                               std::size_t& written, PcmBlockInfo& info) = 0;
   virtual void reset() = 0;
+  // False when seek() can never succeed for the open file (for example a raw .aac stream).
+  virtual bool can_seek() const { return true; }
   virtual bool seek(std::uint64_t position_ms) {
     (void)position_ms;
     return false;

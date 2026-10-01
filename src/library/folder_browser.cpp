@@ -17,8 +17,17 @@ std::string join_path(const std::string& parent, const std::string& name) {
 }
 
 std::string parent_path(const std::string& path) {
-  const std::size_t separator = path.find_last_of("/\\:");
-  return separator == std::string::npos ? std::string{} : path.substr(0, separator);
+  std::string trimmed = path;
+  while (trimmed.size() > 1 && (trimmed.back() == '/' || trimmed.back() == '\\'))
+    trimmed.pop_back();
+  const std::size_t separator = trimmed.find_last_of("/\\:");
+  if (separator == std::string::npos)
+    return {};
+  std::string parent = trimmed.substr(0, separator);
+  // "sdmc:/music" -> "sdmc:/", so a device root keeps its separator.
+  if (!parent.empty() && parent.back() == ':')
+    parent.push_back('/');
+  return parent;
 }
 
 }
@@ -46,19 +55,29 @@ bool FolderBrowser::enter(std::size_t index, std::string& error) {
     error = "Folder selection is unavailable";
     return false;
   }
+  // Move only if the folder can be listed; otherwise entries_ would describe the old folder
+  // while current_path_ names the new one.
+  const std::string previous = current_path_;
   current_path_ = join_path(current_path_, entries_[index].name);
   selected_ = 0;
-  return refresh(error);
+  if (refresh(error))
+    return true;
+  current_path_ = previous;
+  return false;
 }
 
 bool FolderBrowser::leave(std::string& error) {
   if (current_path_ == root_) {
-    error = "Already at the library root";
+    error = "Already at the top folder";
     return false;
   }
+  const std::string previous = current_path_;
   current_path_ = parent_path(current_path_);
   selected_ = 0;
-  return refresh(error);
+  if (refresh(error))
+    return true;
+  current_path_ = previous;
+  return false;
 }
 
 void FolderBrowser::select(std::size_t index) {
@@ -67,6 +86,10 @@ void FolderBrowser::select(std::size_t index) {
     return;
   }
   selected_ = std::min(index, entries_.size() - 1);
+}
+
+std::string FolderBrowser::path_of(std::size_t index) const {
+  return index < entries_.size() ? join_path(current_path_, entries_[index].name) : std::string();
 }
 
 const std::string& FolderBrowser::current_path() const {

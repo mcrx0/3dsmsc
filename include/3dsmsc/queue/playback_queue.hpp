@@ -16,6 +16,7 @@ class PlaybackQueue {
   std::size_t size() const;
   std::size_t current_index() const;
   const Track* current() const;
+  Track* mutable_current();
   bool select(std::size_t index);
   const Track* next();
   const Track* previous();

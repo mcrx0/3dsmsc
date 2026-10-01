@@ -33,7 +33,12 @@ target_compile_definitions(faad2_decoder PRIVATE
   HAVE_LRINTF=1
   PACKAGE_VERSION="2.11.3"
 )
-target_compile_options(faad2_decoder PRIVATE -O2 -ffloat-store)
+target_compile_options(faad2_decoder PRIVATE -O2)
+# -ffloat-store only matters for x87 precision on x86 hosts; on the ARM11's VFP it forces every
+# float temporary through memory and slows AAC decoding.
+if(NOT BUILD_3DS)
+  target_compile_options(faad2_decoder PRIVATE -ffloat-store)
+endif()
 target_link_libraries(faad2_decoder PUBLIC m)
 
 add_library(3dsmsc_core STATIC
@@ -47,10 +52,13 @@ add_library(3dsmsc_core STATIC
   src/config/settings_file.cpp
   src/library/track.cpp
   src/library/library_index.cpp
+  src/library/browse_index.cpp
+  src/ui/browse_navigator.cpp
   src/library/metadata.cpp
   src/library/artwork.cpp
   src/library/controller.cpp
   src/library/folder_browser.cpp
+  src/library/folder_list_file.cpp
   src/library/filesystem.cpp
   src/library/scanner.cpp
   src/queue/playback_queue.cpp
@@ -129,9 +137,36 @@ if(BUILD_3DS)
     $<$<CXX_COMPILER_ID:GNU>:-Wall;-Wextra;-fno-exceptions;-fno-rtti>
   )
 
+  find_program(TEX3DS NAMES tex3ds HINTS "$ENV{DEVKITPRO}/tools/bin")
+  find_package(Python3 COMPONENTS Interpreter)
+
   set(THREEDSX_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/3dsmsc.3dsx")
   set(THREEDSX_SMDH "${CMAKE_CURRENT_BINARY_DIR}/3dsmsc.smdh")
   set(APP_ICON "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon.png")
+  set(ROMFS_DIR "${CMAKE_CURRENT_BINARY_DIR}/romfs")
+  set(ICON_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/icons")
+  set(ICON_SHEET "${ROMFS_DIR}/gfx/icons.t3x")
+  file(GLOB ICON_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/*.svg"
+       "${CMAKE_CURRENT_SOURCE_DIR}/assets/icons/order.txt")
+
+  set(THREEDSX_ARGS "")
+  set(THREEDSX_DEPENDS 3dsmsc-3ds)
+  if(TEX3DS AND Python3_FOUND)
+    add_custom_command(
+      OUTPUT "${ICON_SHEET}"
+      COMMAND "${CMAKE_COMMAND}" -E make_directory "${ROMFS_DIR}/gfx"
+      COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build-icons.py" "${ICON_BUILD_DIR}"
+      COMMAND "${TEX3DS}" -i "${ICON_BUILD_DIR}/icons.t3s" -o "${ICON_SHEET}"
+      DEPENDS ${ICON_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/build-icons.py"
+      VERBATIM
+    )
+    add_custom_target(3dsmsc-icons DEPENDS "${ICON_SHEET}")
+    list(APPEND THREEDSX_ARGS "--romfs=${ROMFS_DIR}")
+    list(APPEND THREEDSX_DEPENDS 3dsmsc-icons)
+  else()
+    message(WARNING "tex3ds or Python 3 not found; building without icons (text labels only)")
+  endif()
+
   if(THREEDSXTOOL AND SMDHTOOL)
     add_custom_command(
       OUTPUT "${THREEDSX_SMDH}"
@@ -144,21 +179,29 @@ if(BUILD_3DS)
     add_custom_command(
       OUTPUT "${THREEDSX_OUTPUT}"
       COMMAND "${THREEDSXTOOL}" "$<TARGET_FILE:3dsmsc-3ds>" "${THREEDSX_OUTPUT}"
-              "--smdh=${THREEDSX_SMDH}"
-      DEPENDS 3dsmsc-3ds "${THREEDSX_SMDH}"
+              "--smdh=${THREEDSX_SMDH}" ${THREEDSX_ARGS}
+      DEPENDS ${THREEDSX_DEPENDS} "${THREEDSX_SMDH}"
       VERBATIM
     )
-    add_custom_target(3dsmsc-3dsx ALL DEPENDS "${THREEDSX_OUTPUT}")
   elseif(THREEDSXTOOL)
     add_custom_command(
       OUTPUT "${THREEDSX_OUTPUT}"
-      COMMAND "${THREEDSXTOOL}" "$<TARGET_FILE:3dsmsc-3ds>" "${THREEDSX_OUTPUT}"
-      DEPENDS 3dsmsc-3ds
+      COMMAND "${THREEDSXTOOL}" "$<TARGET_FILE:3dsmsc-3ds>" "${THREEDSX_OUTPUT}" ${THREEDSX_ARGS}
+      DEPENDS ${THREEDSX_DEPENDS}
       VERBATIM
     )
-    add_custom_target(3dsmsc-3dsx ALL DEPENDS "${THREEDSX_OUTPUT}")
     message(WARNING "smdhtool was not found; the 3DS package will not contain app metadata")
   else()
     message(WARNING "3dsxtool was not found; only the ELF target will be generated")
+  endif()
+
+  if(THREEDSXTOOL)
+    # Copy the finished package to dist/ at the repository root for easy testing.
+    set(DIST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dist")
+    add_custom_target(3dsmsc-3dsx ALL
+      COMMAND "${CMAKE_COMMAND}" -E make_directory "${DIST_DIR}"
+      COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${THREEDSX_OUTPUT}" "${DIST_DIR}/3dsmsc.3dsx"
+      DEPENDS "${THREEDSX_OUTPUT}"
+    )
   endif()
 endif()

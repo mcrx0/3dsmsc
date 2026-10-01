@@ -17,6 +17,8 @@ class FolderBrowser {
   bool leave(std::string& error);
   void select(std::size_t index);
 
+  // Full path of the folder at `index` in entries(), or empty when out of range.
+  std::string path_of(std::size_t index) const;
   const std::string& current_path() const;
   const std::vector<DirectoryEntry>& entries() const;
   std::size_t selected() const;

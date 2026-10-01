@@ -18,9 +18,10 @@ The repository currently contains the first implementation milestone:
 - searchable library index data structures;
 - a basic playback queue;
 - an explicit recursive SD-card library scanner with cancellation and hidden-file filtering;
-- filename metadata fallback, ID3/FLAC/MP4 embedded tags, and sidecar artwork lookup;
-- a folder browser for selecting nested library roots;
-- queue persistence at `sdmc:/3dmms/queue.txt`;
+- filename metadata fallback, ID3/FLAC/MP4 embedded tags (including track and disc numbers and Latin-1/UTF-16 text), and sidecar artwork lookup;
+- an Artist → Album → Track browse index with a scrolling touch list;
+- a folder picker that browses the whole SD card and remembers several music folders to scan;
+- queue persistence at `sdmc:/3dsmsc/queue.txt`;
 - a procedural citro2d cassette view with animated reel state and touch-screen navigation shell;
 - a library controller that loads config and runs explicit default/selected scans;
 - a bounded minimp3 MP3 decoder, dr_flac FLAC decoder, and FAAD2/minimp4 AAC path;

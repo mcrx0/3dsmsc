@@ -49,10 +49,16 @@ bool ArtworkLocator::find(const std::string& track_path, std::string& artwork_pa
   const std::string parent = parent_path(track_path);
   if (parent.empty())
     return false;
+  if (has_cache_ && parent == cached_folder_) {
+    artwork_path = cached_artwork_;
+    return !artwork_path.empty();
+  }
   std::vector<DirectoryEntry> entries;
   std::string error;
   if (!filesystem_.list_directory(parent, entries, error))
     return false;
+  has_cache_ = true;
+  cached_folder_ = parent;
   int best_priority = 4;
   for (const DirectoryEntry& entry : entries) {
     if (entry.is_directory)
@@ -64,6 +70,7 @@ bool ArtworkLocator::find(const std::string& track_path, std::string& artwork_pa
       artwork_path = join_path(parent, entry.name);
     }
   }
+  cached_artwork_ = artwork_path;
   return !artwork_path.empty();
 }
 
