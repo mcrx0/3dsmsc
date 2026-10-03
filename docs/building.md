@@ -55,7 +55,7 @@ The `.3dsx` can be copied to a folder on the SD card, for example:
 /3ds/3dsmsc/3dsmsc.3dsx
 ```
 
-The later CIA target will be added after the `.3dsx` path is validated on hardware. The SMDH metadata is generated from the `APP_NAME`, `APP_VERSION`, `APP_MAINTAINER`, and `APP_DESCRIPTION` values in `CMakeLists.txt`; the current maintainer is `@mcrx0` and the current version is `0.5.1`.
+The later CIA target will be added after the `.3dsx` path is validated on hardware. The SMDH metadata is generated from the `APP_NAME`, `APP_VERSION`, `APP_MAINTAINER`, and `APP_DESCRIPTION` values in `CMakeLists.txt`; the current maintainer is `@mcrx0` and the current version is `0.5.2`.
 
 ## Continuous integration
 
