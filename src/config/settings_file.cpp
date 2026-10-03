@@ -55,6 +55,7 @@ bool save_settings_file(const std::string& path, const Settings& settings, std::
          << '\n';
   output << "background_playback = " << (settings.background_playback ? "true" : "false") << '\n';
   output << "theme = \"" << (settings.theme == Theme::Light ? "light" : "dark") << "\"\n";
+  output << "show_cover = " << (settings.show_cover ? "true" : "false") << '\n';
   output << "battery_display = \"" << battery_display_name(settings.battery_display) << "\"\n";
   output << "repeat = \"" << repeat_mode_name(settings.repeat) << "\"\n";
   output << "shuffle = " << (settings.shuffle ? "true" : "false") << '\n';

@@ -30,6 +30,12 @@ the portable modules:
   and status messages, against a fake audio player.
 - **Equalizer editor and layout:** touch-to-band and touch-to-gain mapping, every editing action, and
   that the screen layout constants do not overlap.
+- **Cover art:** a PNG and a JPEG decode, crop to the centre square and keep their orientation and
+  colours; missing, empty, non-image, and oversized files are refused; the GPU tile layout is a
+  permutation with the expected positions; and embedded pictures are found in ID3v2.2, 2.3 and 2.4
+  tags (front cover preferred, UTF-16 descriptions, unsynchronisation), FLAC PICTURE blocks, and MP4
+  `covr` atoms, while truncated, oversized, or picture-less files give nothing. A picture file wins
+  over an embedded one, and an unreadable picture file falls back to it.
 - **Equalizer:** measured gain on test tones (boost, cut, distant bands untouched), skipped bands at
   low sample rates, saturation instead of wrap-around, and presets.
 
@@ -42,6 +48,10 @@ The touch and button logic in `src/3ds/` is exercised by `tools/host_harness/`, 
 application code against fake libctru headers and records every draw command. A scripted or fuzzed
 session produces a hash; a refactor must leave every hash unchanged. See
 `tools/host_harness/README.md`.
+
+`tools/host_harness/cover_smoke.sh` runs the real app with a cover in the album folder and checks that
+the background decoder delivers it, from a picture file and from a picture embedded in the MP3, and
+that nothing is drawn when the setting is off.
 
 ## Quality checks
 
@@ -73,8 +83,12 @@ After building `.3dsx`, with the DSP firmware in place (`sdmc:/3ds/dspfirm.cdc`)
     (icon, percentage, or off under **Settings > UI > Battery**), and that it turns accent coloured
     while charging and red below 15%.
 11. Verify `Settings > Full scan again` after a scan of an empty folder.
+    Try an album with a `cover.jpg`, one with a `cover.png`, and an MP3 with an embedded picture and
+    no picture file: the cover must appear beside the title a moment after the track starts, the right way up and in the right colours, and **Settings
+    > UI > Cover art** must hide it and give the text its room back.
 12. Open **Settings > Misc > Button mapping** and **About this**: scroll to the end of each, and check that B returns to Settings and that the listed buttons match what they do.
-13. Read `sdmc:/3dsmsc/boot.log`: it should list every start-up step and no slow frames during idle.
+13. Read `sdmc:/3dsmsc/boot.log`: it should list every start-up step and no slow frames during idle,
+    and one `cover:` line per cover (`picture file`, `embedded picture`, or `no usable cover`).
 
 Citra reports no headphones and needs the DSP firmware in its emulated SD card. Steps 2 to 8 and 11
 can be checked there; steps 9 and 10 (the lid and the headphones) need a console.

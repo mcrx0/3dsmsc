@@ -16,6 +16,7 @@ Result ndspInit(); void ndspExit(); void ndspSetOutputMode(int); void ndspChnSet
 void ndspChnSetFormat(int,int); void ndspChnSetMix(int,float*); void ndspChnWaveBufClear(int); void ndspChnWaveBufAdd(int,ndspWaveBuf*); void ndspChnSetPaused(int,bool);
 void* linearAlloc(unsigned long); void linearFree(void*); void DSP_FlushDataCache(const void*, unsigned long);
 Thread threadCreate(void(*)(void*), void*, unsigned long, int, int, bool); Result threadJoin(Thread,u64); void threadFree(Thread);
+typedef int LightLock; void LightLock_Init(LightLock*); void LightLock_Lock(LightLock*); void LightLock_Unlock(LightLock*);
 #define U64_MAX 0xFFFFFFFFFFFFFFFFull
 void aptSetSleepAllowed(bool);
 bool C3D_Init(int); bool C2D_Init(int); void C2D_Prepare(); void C2D_Fini(); void C3D_Fini();

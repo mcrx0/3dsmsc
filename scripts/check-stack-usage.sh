@@ -15,7 +15,7 @@ out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 flags="-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft -D__3DS__ -DARM11 -O3 -DNDEBUG -std=c++17 \
   -fno-exceptions -fno-rtti -fstack-usage -I $root/include -I $root/third_party/minimp3 \
-  -I $root/third_party/minimp4 -I $root/third_party/dr_libs -I $root/third_party/faad2/include \
+  -I $root/third_party/minimp4 -I $root/third_party/dr_libs -I $root/third_party/faad2/include -I $root/third_party/stb \
   -I $devkitpro/libctru/include -I $devkitpro/portlibs/3ds/include -I $root/src/3ds"
 cd "$out"
 for source in "$root"/src/*/*.cpp; do

@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -202,4 +203,14 @@ Result PTMU_GetBatteryChargeState(u8* charging) {
   const char* value = std::getenv("CHARGING");
   *charging = value != nullptr && value[0] == '1' ? 1 : 0;
   return 0;
+}
+
+// One global lock stands in for every LightLock: the threads here are real, so it must really lock.
+static std::mutex light_lock_mutex;
+void LightLock_Init(LightLock*) {}
+void LightLock_Lock(LightLock*) {
+  light_lock_mutex.lock();
+}
+void LightLock_Unlock(LightLock*) {
+  light_lock_mutex.unlock();
 }

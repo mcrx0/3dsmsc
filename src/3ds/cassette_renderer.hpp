@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "3dsmsc/ui/cassette_view.hpp"
+#include "3dsmsc/ui/cover_image.hpp"
 #include "icons.hpp"
 
 namespace threedsmsc {
@@ -18,6 +19,10 @@ class CassetteRenderer {
   bool init();
   void shutdown();
   void render(const CassetteView& view);
+  // Shows a cover (already in GPU layout, see tile_for_gpu) beside the title, or clears it with
+  // nullptr. The pixels are copied; the texture is updated at the start of the next frame, when
+  // the GPU is known to be idle.
+  void set_cover(const CoverPixels* tiled);
 
  private:
   void draw_text(const char* text, float x, float y, float scale, u32 color);
@@ -39,6 +44,8 @@ class CassetteRenderer {
   void draw_top(const CassetteView& view);
   void draw_bottom(const CassetteView& view);
   void draw_equalizer(const CassetteView& view);
+  void draw_cover(const Palette& p);
+  void apply_cover_change();
   void draw_battery(const CassetteView& view, const Palette& p);
   void draw_list(const CassetteView& view, const Palette& p);
   void draw_list_row(const CassetteView& view, const Palette& p, std::size_t index, float y);
@@ -59,6 +66,13 @@ class CassetteRenderer {
   std::size_t cached_glyphs_ = 0;
   C3D_RenderTarget* top_target_ = nullptr;
   C3D_RenderTarget* bottom_target_ = nullptr;
+  C3D_Tex cover_texture_ = {};
+  Tex3DS_SubTexture cover_subtexture_ = {cover_size, cover_size, 0.0F, 1.0F, 1.0F, 0.0F};
+  bool cover_texture_ready_ = false;  // the texture exists
+  bool cover_visible_ = false;        // and holds a picture
+  bool cover_upload_pending_ = false;
+  bool cover_clear_pending_ = false;
+  CoverPixels cover_pixels_ = {};
 };
 
 }

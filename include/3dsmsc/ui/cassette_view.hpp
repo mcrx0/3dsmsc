@@ -28,6 +28,7 @@ struct CassetteView {
   std::uint64_t position_ms = 0;
   std::uint64_t duration_ms = 0;
   float volume = 0.0f;
+  bool show_cover = true;    // reserve a slot beside the title for the cover (or a placeholder)
   int battery_percent = -1;  // 0..100, or -1 when unknown (nothing is drawn)
   bool battery_charging = false;
   int battery_display = 1;  // 0 off, 1 icon, 2 percentage

@@ -219,6 +219,17 @@ void test_layout_is_consistent() {
   assert(layout::eq_zero_y + layout::eq_half_range_px <= layout::eq_bars_touch_bottom);
   assert(layout::eq_bars_touch_bottom <= layout::eq_buttons_top);
   assert(layout::eq_header_bottom <= layout::eq_bars_touch_top);
+  // The cover frame sits under the cassette (which ends at y 143) and above the progress bar (y
+  // 199), inside the screen, and the text starts to its right with a gap.
+  assert(layout::cover_frame_y > 143);
+  assert(layout::cover_frame_y + layout::cover_frame_size < 199);
+  assert(layout::cover_frame_x >= 0);
+  assert(layout::cover_text_x >= layout::cover_frame_x + layout::cover_frame_size + 4);
+  // The picture is inside the frame with room for the outline, and the corner radius is smaller
+  // than that gap plus the outline, so the square picture cannot poke out of the rounded frame.
+  assert(layout::cover_image_inset >= 3);
+  assert(layout::cover_image_inset * 2 < layout::cover_frame_size);
+  assert(layout::cover_frame_radius <= layout::cover_image_inset);
 }
 
 }

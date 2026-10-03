@@ -32,6 +32,7 @@ Settings load_initial_settings() {
 App::App(CassetteRenderer& renderer)
     : renderer_(renderer),
       settings_(load_initial_settings()),
+      artwork_locator_(filesystem_),
       library_(filesystem_, settings_),
       // The folder picker can browse the whole SD card, so its root is the card itself.
       folder_browser_(filesystem_, "sdmc:/"),
@@ -44,6 +45,7 @@ App::App(CassetteRenderer& renderer)
   mcuHwcInit();
   ptmuInit();
   audio_available_ = audio_.init();
+  cover_loader_.start();
   if (audio_available_) {
     boot_log("audio ready");
   } else {
@@ -72,6 +74,7 @@ App::App(CassetteRenderer& renderer)
   view_.seek_seconds = settings_.seek_seconds;
   view_.repeat_mode = static_cast<int>(settings_.repeat);
   view_.battery_display = static_cast<int>(settings_.battery_display);
+  view_.show_cover = settings_.show_cover;
   view_.shuffle = settings_.shuffle;
   view_.library_path = describe_roots();
   view_.status = audio_available_ ? library_.status() : audio_.error();
@@ -158,6 +161,58 @@ void App::poll_battery() {
     view_.battery_charging = charging != 0;
 }
 
+// Keeps the cover on the screen in step with the current track. The picture comes from the
+// background decoder, so a change of cover first drops the old one (a wrong picture is worse than
+// the placeholder) and the new one appears a moment later. Tracks that share a cover (see
+// cover_key) keep it across the change.
+void App::update_cover() {
+  static const std::string no_track;
+  Track* track = queue_.mutable_current();
+  const bool enabled = settings_.show_cover && track != nullptr;
+  const std::string& path = enabled ? track->path : no_track;
+  if (enabled != cover_enabled_ || path != cover_track_path_) {
+    cover_enabled_ = enabled;
+    cover_track_path_ = path;
+    select_cover(enabled ? track : nullptr);
+  }
+  std::string loaded;
+  CoverSource source = CoverSource::None;
+  if (!cover_loader_.take(loaded, cover_buffer_, source) || loaded != cover_key_)
+    return;
+  log_cover_result(loaded, source);
+  if (source != CoverSource::None)
+    renderer_.set_cover(&cover_buffer_);
+}
+
+// The track changed (or the cover was switched on or off): work out which picture it needs. A
+// queue restored from disk holds only paths, so the picture file is looked up here.
+void App::select_cover(Track* track) {
+  std::string key;
+  if (track != nullptr) {
+    if (track->artwork_path.empty())
+      artwork_locator_.find(track->path, track->artwork_path);
+    key = cover_key(*track);
+  }
+  if (key == cover_key_)
+    return;
+  cover_key_ = std::move(key);
+  renderer_.set_cover(nullptr);
+  if (track != nullptr)
+    cover_loader_.request(cover_key_, track->artwork_path, track->path);
+}
+
+// The first few outcomes go to boot.log: a cover that never appears is otherwise a silent failure.
+void App::log_cover_result(const std::string& key, CoverSource source) {
+  constexpr int max_cover_logs = 12;
+  if (cover_logs_ >= max_cover_logs)
+    return;
+  ++cover_logs_;
+  const char* how = source == CoverSource::Sidecar    ? "picture file"
+                    : source == CoverSource::Embedded ? "embedded picture"
+                                                      : "no usable cover";
+  boot_log((std::string("cover: ") + how + ": " + key).c_str());
+}
+
 void App::save_queue_if_due() {
   if (queue_dirty_ && osGetTime() - last_queue_save_ > queue_save_delay_ms) {
     save_queue_file(queue_path, queue_);
@@ -218,6 +273,7 @@ void App::run() {
     }
     const PlaybackSnapshot playback = playback_.tick(view_.playing);
     sync_playback();
+    update_cover();
     update_frame_state(playback, frame_start);
     save_queue_if_due();
     const std::uint64_t render_start = osGetTime();
@@ -232,6 +288,7 @@ void App::shutdown() {
   sync_playback();
   if (queue_dirty_)
     save_queue_file(queue_path, queue_);
+  cover_loader_.stop();
   audio_.shutdown();
   ptmuExit();
   mcuHwcExit();

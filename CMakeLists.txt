@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
-project(3dsmsc VERSION 0.5.1 LANGUAGES C CXX)
+project(3dsmsc VERSION 0.5.2 LANGUAGES C CXX)
 
 set(APP_NAME "3dsmsc")
-set(APP_VERSION "0.5.1")
+set(APP_VERSION "0.5.2")
 set(APP_MAINTAINER "@mcrx0")
 set(APP_DESCRIPTION "A lightweight offline music player for the Nintendo 3DS")
 
@@ -57,6 +57,8 @@ add_library(3dsmsc_core STATIC
   src/ui/browse_navigator.cpp
   src/ui/equalizer_editor.cpp
   src/ui/help_text.cpp
+  src/ui/cover_image.cpp
+  src/ui/stb_image_impl.cpp
   src/library/metadata.cpp
   src/library/tag_flac.cpp
   src/library/tag_id3.cpp
@@ -64,6 +66,10 @@ add_library(3dsmsc_core STATIC
   src/library/tag_mp4.cpp
   src/library/tag_text.cpp
   src/library/artwork.cpp
+  src/library/embedded_cover.cpp
+  src/library/cover_id3.cpp
+  src/library/cover_flac.cpp
+  src/library/cover_mp4.cpp
   src/library/controller.cpp
   src/library/folder_browser.cpp
   src/library/folder_list_file.cpp
@@ -80,7 +86,10 @@ target_include_directories(3dsmsc_core
     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/minimp3"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/minimp4"
     "${CMAKE_CURRENT_SOURCE_DIR}/third_party/dr_libs"
+    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb"
 )
+# stb_image is third-party code written for C-style warnings levels; it is used as received.
+set_source_files_properties(src/ui/stb_image_impl.cpp PROPERTIES COMPILE_OPTIONS "-w")
 
 target_compile_options(3dsmsc_core PRIVATE
   $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall;-Wextra;-Wpedantic;-fno-exceptions;-fno-rtti>
@@ -145,6 +154,7 @@ if(BUILD_3DS)
     src/3ds/app_panels.cpp
     src/3ds/app_library.cpp
     src/3ds/cassette_renderer.cpp
+    src/3ds/cover_loader.cpp
     src/3ds/ndsp_player.cpp
   )
   target_include_directories(3dsmsc-3ds PRIVATE "${LIBCTRU_INCLUDE_DIR}")

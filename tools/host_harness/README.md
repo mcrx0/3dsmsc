@@ -35,6 +35,18 @@ The binary is driven by environment variables:
 `render_preview.py` and `preview_driver.cpp` render a set of screen states to image files for a
 visual check of the renderer.
 
+## Cover smoke test
+
+```sh
+tools/host_harness/cover_smoke.sh build/harness/hostmain_zero [cover-file]
+```
+
+Starts the app with a queue and checks that the background decoder delivers the cover, from a
+picture file in the album folder and from a picture embedded in the MP3 (a `K` draw command
+appears), and that nothing is drawn with `show_cover = false`. It is
+separate from the golden comparison because the frame on which the cover arrives depends on thread
+timing.
+
 ## Golden comparison
 
 ```sh

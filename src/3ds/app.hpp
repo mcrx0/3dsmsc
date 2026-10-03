@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "3dsmsc/config/settings.hpp"
+#include "3dsmsc/library/artwork.hpp"
 #include "3dsmsc/library/browse_index.hpp"
 #include "3dsmsc/library/controller.hpp"
 #include "3dsmsc/library/filesystem.hpp"
@@ -22,6 +23,7 @@
 #include "3dsmsc/ui/help_text.hpp"
 #include "3dsmsc/ui/panel.hpp"
 #include "cassette_renderer.hpp"
+#include "cover_loader.hpp"
 #include "ndsp_player.hpp"
 
 namespace threedsmsc {
@@ -68,6 +70,9 @@ class App {
   void save_settings();
   void update_frame_state(const PlaybackSnapshot& playback, std::uint64_t frame_start);
   void poll_battery();
+  void update_cover();
+  void select_cover(Track* track);
+  void log_cover_result(const std::string& key, CoverSource source);
   void save_queue_if_due();
   void log_slow_frame(std::uint64_t frame_start, std::uint64_t render_start,
                       std::uint64_t frame_end);
@@ -128,9 +133,17 @@ class App {
   NdspAudioPlayer audio_;
   bool audio_available_ = false;
   Settings settings_;
+  CoverLoader cover_loader_;
+  std::string cover_key_;         // what the shown (or being decoded) cover belongs to
+  std::string cover_track_path_;  // the track the cover was last chosen for
+  bool cover_enabled_ = false;
+  int cover_logs_ = 0;
+  CoverPixels cover_buffer_ = {};
   std::string config_error_;
   float volume_ = 0.0F;
   LocalFileSystem filesystem_;
+  // A queue restored from disk holds only paths, so the cover is looked up when a track plays.
+  ArtworkLocator artwork_locator_;
   LibraryController library_;
   FolderBrowser folder_browser_;
   std::vector<std::string> selected_folders_;

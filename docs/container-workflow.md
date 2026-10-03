@@ -51,8 +51,9 @@ Notes:
 - The image already has `cmake` and `ninja`. For the checks below, `clang-format`, `clang-tidy`, and
   `g++` are added the same way.
 - The bind mount (`-v "$PWD":/src`) makes the container write `build/` and `dist/` into the working
-  tree. With rootless podman those files belong to your user. With docker they belong to root: use
-  `--user "$(id -u):$(id -g)"` or clean up with `sudo`.
+  tree. With rootless podman those files belong to your user. With docker they belong to root. The
+  `apt-get` steps need root, so end the container command with `chown -R "$UIDGID" /src` and pass
+  `-e UIDGID="$(id -u):$(id -g)"`, or clean up with `sudo`.
 
 ## Stack check and quality checks
 

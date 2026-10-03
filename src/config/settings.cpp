@@ -85,6 +85,8 @@ const SettingRule setting_rules[] = {
     {"player", "background_playback",
      [](Settings& s, std::string_view v) { return parse_bool(v, s.background_playback); }},
     {"player", "theme", [](Settings& s, std::string_view v) { return parse_theme(v, s.theme); }},
+    {"player", "show_cover",
+     [](Settings& s, std::string_view v) { return parse_bool(v, s.show_cover); }},
     {"player", "battery_display",
      [](Settings& s, std::string_view v) { return parse_battery_display(v, s.battery_display); }},
     {"player", "repeat",
@@ -146,6 +148,7 @@ Settings default_settings() {
   settings.background_playback = true;
   settings.theme = Theme::Dark;
   settings.battery_display = BatteryDisplay::Icon;
+  settings.show_cover = true;
   settings.repeat = RepeatMode::All;  // the queue has always looped
   settings.shuffle = false;
   settings.seek_seconds = 10;

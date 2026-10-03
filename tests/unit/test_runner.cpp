@@ -8,5 +8,6 @@ int main() {
   run_queue_tests();
   run_ui_tests();
   run_playback_tests();
+  run_cover_tests();
   return 0;
 }

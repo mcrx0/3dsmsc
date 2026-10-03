@@ -31,6 +31,6 @@ echo "== clang-tidy (3DS application code, against the host harness stubs)"
 for file in src/3ds/*.cpp; do
   clang-tidy --quiet "$file" -- -std=c++17 -fno-exceptions -fno-rtti -Itools/host_harness/stubs \
     -Iinclude -Ithird_party/minimp3 -Ithird_party/minimp4 -Ithird_party/dr_libs \
-    -Ithird_party/faad2/include -Isrc/3ds
+    -Ithird_party/faad2/include -Ithird_party/stb -Isrc/3ds
 done
 echo "all checks passed"
