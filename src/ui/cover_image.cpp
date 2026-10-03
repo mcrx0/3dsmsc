@@ -63,7 +63,8 @@ void shrink_square(const unsigned char* rgb, int width, int height, CoverPixels&
           blue += row[2];
         }
       }
-      const auto count = static_cast<unsigned long>((y_end - y_begin) * (x_end - x_begin));
+      const auto count =
+          static_cast<unsigned long>(y_end - y_begin) * static_cast<unsigned long>(x_end - x_begin);
       pixels[static_cast<std::size_t>(out_y) * cover_size + out_x] =
           pack_rgb565(static_cast<unsigned>(red / count), static_cast<unsigned>(green / count),
                       static_cast<unsigned>(blue / count));
@@ -105,7 +106,8 @@ void tile_for_gpu(const CoverPixels& linear, CoverPixels& tiled) {
   for (int y = 0; y < cover_size; ++y) {
     const int row = cover_size - 1 - y;
     for (int x = 0; x < cover_size; ++x) {
-      const std::size_t tile = static_cast<std::size_t>((row / 8) * tiles_per_row + x / 8);
+      const std::size_t tile =
+          static_cast<std::size_t>(row / 8) * tiles_per_row + static_cast<std::size_t>(x / 8);
       tiled[tile * 64 + morton_in_tile(x % 8, row % 8)] =
           linear[static_cast<std::size_t>(y) * cover_size + x];
     }
