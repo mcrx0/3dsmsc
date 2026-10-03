@@ -66,6 +66,7 @@ add_library(3dsmsc_core STATIC
   src/library/tag_mp4.cpp
   src/library/tag_text.cpp
   src/library/artwork.cpp
+  src/library/embedded_cover.cpp
   src/library/controller.cpp
   src/library/folder_browser.cpp
   src/library/folder_list_file.cpp

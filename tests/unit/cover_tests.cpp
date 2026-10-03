@@ -3,9 +3,12 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <set>
 #include <string>
+#include <vector>
 
+#include "3dsmsc/library/embedded_cover.hpp"
 #include "3dsmsc/ui/cover_image.hpp"
 #include "test_suites.hpp"
 
@@ -99,6 +102,218 @@ void test_gpu_tiling_is_a_permutation_with_known_positions() {
   assert(tiled[8 * 64] == linear[55 * cover_size + 0]);  // the second tile row is 8 rows higher
 }
 
+using Bytes = std::vector<unsigned char>;
+
+Bytes read_fixture(const char* path) {
+  std::ifstream input(path, std::ios::binary);
+  return Bytes((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+}
+
+void append(Bytes& target, const Bytes& more) {
+  target.insert(target.end(), more.begin(), more.end());
+}
+
+void append_text(Bytes& target, const std::string& text) {
+  target.insert(target.end(), text.begin(), text.end());
+}
+
+Bytes u32_be(std::uint32_t value) {
+  return {static_cast<unsigned char>(value >> 24), static_cast<unsigned char>(value >> 16),
+          static_cast<unsigned char>(value >> 8), static_cast<unsigned char>(value)};
+}
+
+Bytes syncsafe(std::uint32_t value) {
+  return {static_cast<unsigned char>((value >> 21) & 0x7F),
+          static_cast<unsigned char>((value >> 14) & 0x7F),
+          static_cast<unsigned char>((value >> 7) & 0x7F),
+          static_cast<unsigned char>(value & 0x7F)};
+}
+
+std::string write_temp(const std::string& name, const Bytes& bytes) {
+  const std::filesystem::path path = std::filesystem::temp_directory_path() / name;
+  std::ofstream output(path, std::ios::binary);
+  output.write(reinterpret_cast<const char*>(bytes.data()),
+               static_cast<std::streamsize>(bytes.size()));
+  return path.string();
+}
+
+// An ID3v2 frame: a four-character id (three for v2.2), a size, flags, and the body.
+Bytes id3_frame(unsigned version, const std::string& id, const Bytes& body) {
+  Bytes frame;
+  append_text(frame, id);
+  if (version == 2) {
+    frame.push_back(static_cast<unsigned char>(body.size() >> 16));
+    frame.push_back(static_cast<unsigned char>(body.size() >> 8));
+    frame.push_back(static_cast<unsigned char>(body.size()));
+  } else {
+    append(frame, version == 4 ? syncsafe(static_cast<std::uint32_t>(body.size()))
+                               : u32_be(static_cast<std::uint32_t>(body.size())));
+    frame.push_back(0);
+    frame.push_back(0);
+  }
+  append(frame, body);
+  return frame;
+}
+
+Bytes id3_tag(unsigned version, unsigned char flags, const Bytes& frames) {
+  Bytes tag = {'I', 'D', '3', static_cast<unsigned char>(version), 0, flags};
+  append(tag, syncsafe(static_cast<std::uint32_t>(frames.size())));
+  append(tag, frames);
+  return tag;
+}
+
+// An APIC body: encoding, MIME type, picture type, description, then the image.
+Bytes apic_body(unsigned char encoding, const Bytes& description, unsigned type,
+                const Bytes& image) {
+  Bytes body = {encoding};
+  append_text(body, "image/png");
+  body.push_back(0);
+  body.push_back(static_cast<unsigned char>(type));
+  append(body, description);
+  append(body, image);
+  return body;
+}
+
+constexpr std::size_t max_bytes = 2 * 1024 * 1024;
+
+bool extract(const std::string& path, Bytes& image) {
+  return threedsmsc::read_embedded_cover(path, max_bytes, image);
+}
+
+void test_id3v23_picture_is_extracted() {
+  const Bytes png = read_fixture("tests/fixtures/cover.png");
+  Bytes frames = id3_frame(3, "TIT2", {0, 'S', 'o', 'n', 'g'});
+  append(frames, id3_frame(3, "APIC", apic_body(0, {0}, 3, png)));
+  const std::string path = write_temp("3dsmsc-v23.mp3", id3_tag(3, 0, frames));
+  Bytes image;
+  assert(extract(path, image));
+  assert(image == png);
+  // And the whole chain: the track has no picture file, so the embedded one is decoded.
+  CoverPixels pixels{};
+  assert(threedsmsc::load_track_cover("", path, pixels) == threedsmsc::CoverSource::Embedded);
+  assert(at(pixels, 10, 40) == red && at(pixels, 53, 40) == blue);
+  std::filesystem::remove(path);
+}
+
+void test_front_cover_is_preferred_and_utf16_description_is_skipped() {
+  const Bytes png = read_fixture("tests/fixtures/cover.png");
+  const Bytes jpg = read_fixture("tests/fixtures/cover.jpg");
+  // The first picture is "other" (type 0), the second the front cover (type 3) with a UTF-16
+  // description: BOM, one letter, and the two-byte terminator.
+  Bytes frames = id3_frame(4, "APIC", apic_body(0, {0}, 0, jpg));
+  append(frames, id3_frame(4, "APIC", apic_body(1, {0xFF, 0xFE, 'a', 0, 0, 0}, 3, png)));
+  const std::string path = write_temp("3dsmsc-v24.mp3", id3_tag(4, 0, frames));
+  Bytes image;
+  assert(extract(path, image));
+  assert(image == png);
+  std::filesystem::remove(path);
+}
+
+void test_id3v22_picture_is_extracted() {
+  const Bytes png = read_fixture("tests/fixtures/cover.png");
+  Bytes body = {0};
+  append_text(body, "PNG");
+  body.push_back(3);
+  body.push_back(0);  // an empty description
+  append(body, png);
+  const std::string path = write_temp("3dsmsc-v22.mp3", id3_tag(2, 0, id3_frame(2, "PIC", body)));
+  Bytes image;
+  assert(extract(path, image));
+  assert(image == png);
+  std::filesystem::remove(path);
+}
+
+void test_unsynchronised_picture_is_restored() {
+  // The tag-level flag 0x80 means every 0xFF in the data was followed by an extra 0x00.
+  const Bytes original = {0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3};
+  const Bytes stuffed = {0xFF, 0x00, 0xD8, 0xFF, 0x00, 0xE0, 1, 2, 3};
+  const std::string path = write_temp(
+      "3dsmsc-unsync.mp3", id3_tag(3, 0x80, id3_frame(3, "APIC", apic_body(0, {0}, 3, stuffed))));
+  Bytes image;
+  assert(extract(path, image));
+  assert(image == original);
+  std::filesystem::remove(path);
+}
+
+void test_flac_picture_is_extracted() {
+  const Bytes png = read_fixture("tests/fixtures/cover.png");
+  Bytes file = {'f', 'L', 'a', 'C', 0x00, 0, 0, 34};  // STREAMINFO, not the last block
+  append(file, Bytes(34, 0));
+  Bytes picture = u32_be(3);
+  append(picture, u32_be(9));
+  append_text(picture, "image/png");
+  append(picture, u32_be(0));  // no description
+  for (int field = 0; field < 4; ++field)
+    append(picture, u32_be(0));  // width, height, depth, colours
+  append(picture, u32_be(static_cast<std::uint32_t>(png.size())));
+  append(picture, png);
+  file.push_back(0x86);  // PICTURE, the last block
+  file.push_back(static_cast<unsigned char>(picture.size() >> 16));
+  file.push_back(static_cast<unsigned char>(picture.size() >> 8));
+  file.push_back(static_cast<unsigned char>(picture.size()));
+  append(file, picture);
+  const std::string path = write_temp("3dsmsc-picture.flac", file);
+  Bytes image;
+  assert(extract(path, image));
+  assert(image == png);
+  std::filesystem::remove(path);
+}
+
+Bytes mp4_box(const std::string& name, const Bytes& payload) {
+  Bytes box = u32_be(static_cast<std::uint32_t>(8 + payload.size()));
+  append_text(box, name);
+  append(box, payload);
+  return box;
+}
+
+void test_mp4_picture_is_extracted() {
+  const Bytes png = read_fixture("tests/fixtures/cover.png");
+  Bytes data_payload = {0, 0, 0, 14, 0, 0, 0, 0};  // type "PNG", locale
+  append(data_payload, png);
+  Bytes meta_payload = {0, 0, 0, 0};  // version and flags
+  append(meta_payload, mp4_box("ilst", mp4_box("covr", mp4_box("data", data_payload))));
+  Bytes file = mp4_box("ftyp", {'M', '4', 'A', ' ', 0, 0, 0, 0});
+  append(file, mp4_box("mdat", Bytes(50, 7)));
+  append(file, mp4_box("moov", mp4_box("udta", mp4_box("meta", meta_payload))));
+  const std::string path = write_temp("3dsmsc-picture.m4a", file);
+  Bytes image;
+  assert(extract(path, image));
+  assert(image == png);
+  std::filesystem::remove(path);
+}
+
+void test_files_without_a_usable_picture_give_nothing() {
+  Bytes image;
+  assert(!extract("tests/fixtures/silence.mp3", image));
+  assert(!extract("tests/fixtures/silence.flac", image));
+  assert(!extract("tests/fixtures/silence.m4a", image));
+  assert(!extract("tests/fixtures/does-not-exist.mp3", image));
+  const Bytes png = read_fixture("tests/fixtures/cover.png");
+  const Bytes tag = id3_tag(3, 0, id3_frame(3, "APIC", apic_body(0, {0}, 3, png)));
+  // A picture bigger than the limit is refused, and so is a tag cut off in the middle of it.
+  const std::string path = write_temp("3dsmsc-limit.mp3", tag);
+  assert(!threedsmsc::read_embedded_cover(path, 100, image));
+  Bytes cut(tag.begin(), tag.begin() + static_cast<std::ptrdiff_t>(tag.size() / 2));
+  assert(!extract(write_temp("3dsmsc-cut.mp3", cut), image));
+  std::filesystem::remove(path);
+  std::filesystem::remove(std::filesystem::temp_directory_path() / "3dsmsc-cut.mp3");
+}
+
+void test_picture_file_beats_the_embedded_picture() {
+  const Bytes jpg = read_fixture("tests/fixtures/cover.jpg");
+  const Bytes tag = id3_tag(3, 0, id3_frame(3, "APIC", apic_body(0, {0}, 3, jpg)));
+  const std::string audio = write_temp("3dsmsc-both.mp3", tag);
+  CoverPixels pixels{};
+  assert(threedsmsc::load_track_cover("tests/fixtures/cover.png", audio, pixels) ==
+         threedsmsc::CoverSource::Sidecar);
+  // A picture file that cannot be read falls back to the embedded one.
+  assert(threedsmsc::load_track_cover("tests/fixtures/silence.mp3", audio, pixels) ==
+         threedsmsc::CoverSource::Embedded);
+  assert(threedsmsc::load_track_cover("", "tests/fixtures/silence.mp3", pixels) ==
+         threedsmsc::CoverSource::None);
+  std::filesystem::remove(audio);
+}
+
 }
 
 void run_cover_tests() {
@@ -106,4 +321,12 @@ void run_cover_tests() {
   test_jpeg_cover_decodes();
   test_bad_covers_are_rejected();
   test_gpu_tiling_is_a_permutation_with_known_positions();
+  test_id3v23_picture_is_extracted();
+  test_front_cover_is_preferred_and_utf16_description_is_skipped();
+  test_id3v22_picture_is_extracted();
+  test_unsynchronised_picture_is_restored();
+  test_flac_picture_is_extracted();
+  test_mp4_picture_is_extracted();
+  test_files_without_a_usable_picture_give_nothing();
+  test_picture_file_beats_the_embedded_picture();
 }

@@ -15,7 +15,9 @@ search_case_sensitive = false
 background_playback = true
 # "dark" or "light"
 theme = "dark"
-# A small cover image beside the title (cover.jpg/png or folder.jpg/png in the album folder).
+# A small cover image beside the title: cover.jpg/png or folder.jpg/png in the album folder, or the
+# picture embedded in the file (ID3 in MP3, PICTURE in FLAC, covr in M4A). At most 2 MB and 1.44
+# megapixels; a larger picture is not shown.
 show_cover = true
 # Battery in the header: "icon", "percent" or "off".
 battery_display = "icon"

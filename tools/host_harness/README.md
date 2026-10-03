@@ -41,8 +41,9 @@ visual check of the renderer.
 tools/host_harness/cover_smoke.sh build/harness/hostmain_zero [cover-file]
 ```
 
-Starts the app with a queue whose album folder holds a cover and checks that the background decoder
-delivers it (a `K` draw command appears) and that nothing is drawn with `show_cover = false`. It is
+Starts the app with a queue and checks that the background decoder delivers the cover, from a
+picture file in the album folder and from a picture embedded in the MP3 (a `K` draw command
+appears), and that nothing is drawn with `show_cover = false`. It is
 separate from the golden comparison because the frame on which the cover arrives depends on thread
 timing.
 

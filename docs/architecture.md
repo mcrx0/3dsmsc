@@ -33,7 +33,7 @@ module owns play order.
 - `audio`: the decoder interface and the MP3, AAC (M4A/MP4 and raw ADTS), and FLAC adapters, plus
   the equalizer. All are portable and bounded: input is read through fixed windows, and a decoder
   never allocates per frame.
-- `library`: the filesystem interface, the recursive scanner, metadata readers (filename fallback,
+- `library`: the filesystem interface, the reader for pictures embedded in audio files, the recursive scanner, metadata readers (filename fallback,
   ID3, FLAC, MP4), sidecar artwork lookup, the track index and search, the Artist → Album → Track
   browse index, the folder picker, the saved folder list, and the library cache.
 - `playback`: the controller that connects the queue to an `AudioPlayer`: which file plays, what

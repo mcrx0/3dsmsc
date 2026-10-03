@@ -45,20 +45,21 @@ void CoverLoader::stop() {
   thread_ = nullptr;
 }
 
-void CoverLoader::request(const std::string& path) {
+void CoverLoader::request(const std::string& key, const std::string& artwork_path,
+                          const std::string& audio_path) {
   const Guard guard(lock_);
-  pending_path_ = path;
-  has_pending_ = !path.empty();
+  pending_ = {key, artwork_path, audio_path};
+  has_pending_ = !key.empty();
   has_done_ = false;  // a finished result for an older request is stale
 }
 
-bool CoverLoader::take(std::string& path, CoverPixels& tiled, bool& ok) {
+bool CoverLoader::take(std::string& key, CoverPixels& tiled, CoverSource& source) {
   const Guard guard(lock_);
   if (!has_done_)
     return false;
-  path = done_path_;
-  ok = done_ok_;
-  if (done_ok_)
+  key = done_key_;
+  source = done_source_;
+  if (source != CoverSource::None)
     tiled = done_pixels_;
   has_done_ = false;
   return true;
@@ -70,26 +71,28 @@ void CoverLoader::entry(void* data) {
 
 void CoverLoader::run() {
   while (!stop_requested_) {
-    std::string path;
+    Request request;
+    bool have_request = false;
     {
       const Guard guard(lock_);
       if (has_pending_) {
-        path = std::move(pending_path_);
+        request = std::move(pending_);
         has_pending_ = false;
+        have_request = true;
       }
     }
-    if (path.empty()) {
+    if (!have_request) {
       svcSleepThread(idle_sleep_ns);
       continue;
     }
-    const bool ok = load_cover(path, linear_);
+    const CoverSource source = load_track_cover(request.artwork_path, request.audio_path, linear_);
     const Guard guard(lock_);
     // A newer request arrived while decoding: this picture is already out of date.
     if (has_pending_)
       continue;
-    done_path_ = std::move(path);
-    done_ok_ = ok;
-    if (ok)
+    done_key_ = std::move(request.key);
+    done_source_ = source;
+    if (source != CoverSource::None)
       tile_for_gpu(linear_, done_pixels_);
     has_done_ = true;
   }

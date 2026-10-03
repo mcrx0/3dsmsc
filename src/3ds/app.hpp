@@ -71,6 +71,7 @@ class App {
   void update_frame_state(const PlaybackSnapshot& playback, std::uint64_t frame_start);
   void poll_battery();
   void update_cover();
+  void log_cover_result(const std::string& key, CoverSource source);
   void save_queue_if_due();
   void log_slow_frame(std::uint64_t frame_start, std::uint64_t render_start,
                       std::uint64_t frame_end);
@@ -132,7 +133,8 @@ class App {
   bool audio_available_ = false;
   Settings settings_;
   CoverLoader cover_loader_;
-  std::string cover_path_;  // the file whose cover is shown or being decoded
+  std::string cover_key_;  // what the shown (or being decoded) cover belongs to
+  int cover_logs_ = 0;
   CoverPixels cover_buffer_ = {};
   std::string config_error_;
   float volume_ = 0.0F;

@@ -172,17 +172,37 @@ void App::update_cover() {
     cover_lookup_path_ = track->path;
     artwork_locator_.find(track->path, track->artwork_path);
   }
+  // Tracks of an album that has a picture file share one key, so the picture is decoded once;
+  // otherwise the track's own embedded picture is used and its key is the track.
   const std::string& wanted =
-      settings_.show_cover && track != nullptr ? track->artwork_path : no_cover;
-  if (wanted != cover_path_) {
-    cover_path_ = wanted;
+      !settings_.show_cover || track == nullptr
+          ? no_cover
+          : (track->artwork_path.empty() ? track->path : track->artwork_path);
+  if (wanted != cover_key_) {
+    cover_key_ = wanted;
     renderer_.set_cover(nullptr);
-    cover_loader_.request(cover_path_);
+    if (track != nullptr)
+      cover_loader_.request(cover_key_, track->artwork_path, track->path);
   }
   std::string loaded;
-  bool ok = false;
-  if (cover_loader_.take(loaded, cover_buffer_, ok) && ok && loaded == cover_path_)
+  CoverSource source = CoverSource::None;
+  if (!cover_loader_.take(loaded, cover_buffer_, source) || loaded != cover_key_)
+    return;
+  log_cover_result(loaded, source);
+  if (source != CoverSource::None)
     renderer_.set_cover(&cover_buffer_);
+}
+
+// The first few outcomes go to boot.log: a cover that never appears is otherwise a silent failure.
+void App::log_cover_result(const std::string& key, CoverSource source) {
+  constexpr int max_cover_logs = 12;
+  if (cover_logs_ >= max_cover_logs)
+    return;
+  ++cover_logs_;
+  const char* how = source == CoverSource::Sidecar    ? "picture file"
+                    : source == CoverSource::Embedded ? "embedded picture"
+                                                      : "no usable cover";
+  boot_log((std::string("cover: ") + how + ": " + key).c_str());
 }
 
 void App::save_queue_if_due() {

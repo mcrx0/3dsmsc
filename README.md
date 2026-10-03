@@ -22,7 +22,7 @@ controlling playback.
   Seeking runs on the audio thread, so the UI never waits for it.
 - Repeat (off, all, one) and shuffle (every track once per pass, then reshuffled).
 - A ten-band equalizer (31 Hz to 16 kHz, ±12 dB) with presets and a touch bar editor.
-- Background playback while the lid is closed, a headphone icon while headphones are plugged in, a battery indicator (icon, percentage, or off), and a small cover image beside the title (a `cover.jpg`/`cover.png` or `folder.jpg`/`folder.png` in the album folder; it can be switched off under **Settings > UI**).
+- Background playback while the lid is closed, a headphone icon while headphones are plugged in, a battery indicator (icon, percentage, or off), and a small cover image beside the title (a `cover.jpg`/`cover.png` or `folder.jpg`/`folder.png` in the album folder, or the picture embedded in the MP3, FLAC or M4A file; it can be switched off under **Settings > UI**).
 
 **Library**
 

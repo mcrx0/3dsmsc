@@ -9,8 +9,9 @@
 namespace threedsmsc {
 
 // Decodes cover images on a background thread, so a large JPEG never stalls the screen or the
-// buttons. The UI thread asks for a file with request() and collects the finished thumbnail with
-// take(); only the latest request is kept, and a result for an older one is dropped by the caller.
+// buttons. The UI thread asks for a track's cover with request() and collects the finished
+// thumbnail with take(); only the latest request is kept, and a result for an older one is dropped
+// by the caller (which compares keys).
 class CoverLoader {
  public:
   CoverLoader() = default;
@@ -20,11 +21,13 @@ class CoverLoader {
 
   bool start();
   void stop();
-  // Replaces the pending request; an empty path cancels it.
-  void request(const std::string& path);
-  // True once per finished decode. `ok` says whether `path` produced a picture; `tiled` is then
-  // in GPU layout (see tile_for_gpu).
-  bool take(std::string& path, CoverPixels& tiled, bool& ok);
+  // Replaces the pending request. `key` identifies the picture (it comes back from take()); the
+  // sidecar file is tried first, then the picture inside the audio file. An empty key cancels.
+  void request(const std::string& key, const std::string& artwork_path,
+               const std::string& audio_path);
+  // True once per finished decode. `source` says where the picture came from, None if the track
+  // has no usable cover; `tiled` is then in GPU layout (see tile_for_gpu).
+  bool take(std::string& key, CoverPixels& tiled, CoverSource& source);
 
  private:
   static void entry(void* data);
@@ -34,11 +37,16 @@ class CoverLoader {
   LightLock lock_ = {};
   volatile bool stop_requested_ = false;
   // Guarded by lock_.
-  std::string pending_path_;
+  struct Request {
+    std::string key;
+    std::string artwork_path;
+    std::string audio_path;
+  };
+  Request pending_;
   bool has_pending_ = false;
-  std::string done_path_;
+  std::string done_key_;
   CoverPixels done_pixels_ = {};
-  bool done_ok_ = false;
+  CoverSource done_source_ = CoverSource::None;
   bool has_done_ = false;
   // Used only by the worker.
   CoverPixels linear_ = {};

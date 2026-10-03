@@ -5,7 +5,9 @@
 #include <cstdlib>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "3dsmsc/library/embedded_cover.hpp"
 #include "3dsmsc/ui/cover_image.hpp"
 #include "3dsmsc/util/unique_file.hpp"
 #include "stb_image.h"
@@ -80,25 +82,41 @@ std::size_t morton_in_tile(int x, int y) {
 
 }
 
-bool load_cover(const std::string& path, CoverPixels& pixels) {
-  std::size_t size = 0;
-  const Buffer file = read_file(path, size);
-  if (!file)
+bool load_cover_from_memory(const unsigned char* data, std::size_t size, CoverPixels& pixels) {
+  if (data == nullptr || size == 0 || size > max_cover_file_bytes)
     return false;
   int width = 0;
   int height = 0;
   int channels = 0;
   const int length = static_cast<int>(size);
-  if (stbi_info_from_memory(file.get(), length, &width, &height, &channels) == 0 || width <= 0 ||
+  if (stbi_info_from_memory(data, length, &width, &height, &channels) == 0 || width <= 0 ||
       height <= 0 || static_cast<long>(width) * height > max_cover_pixels) {
     return false;
   }
-  stbi_uc* decoded = stbi_load_from_memory(file.get(), length, &width, &height, &channels, 3);
+  stbi_uc* decoded = stbi_load_from_memory(data, length, &width, &height, &channels, 3);
   if (decoded == nullptr)
     return false;
   shrink_square(decoded, width, height, pixels);
   stbi_image_free(decoded);
   return true;
+}
+
+bool load_cover(const std::string& path, CoverPixels& pixels) {
+  std::size_t size = 0;
+  const Buffer file = read_file(path, size);
+  return file && load_cover_from_memory(file.get(), size, pixels);
+}
+
+CoverSource load_track_cover(const std::string& artwork_path, const std::string& audio_path,
+                             CoverPixels& pixels) {
+  if (!artwork_path.empty() && load_cover(artwork_path, pixels))
+    return CoverSource::Sidecar;
+  std::vector<unsigned char> image;
+  if (read_embedded_cover(audio_path, max_cover_file_bytes, image) &&
+      load_cover_from_memory(image.data(), image.size(), pixels)) {
+    return CoverSource::Embedded;
+  }
+  return CoverSource::None;
 }
 
 void tile_for_gpu(const CoverPixels& linear, CoverPixels& tiled) {
