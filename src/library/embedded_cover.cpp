@@ -288,7 +288,7 @@ bool find_mp4_picture(std::FILE* file, std::size_t max_bytes, Candidate& candida
     return false;
   }
   const std::uint64_t size = range.end - range.start;
-  if (size == 0 || size > max_bytes || std::fseek(file, static_cast<long>(range.start), SEEK_SET))
+  if (size == 0 || size > max_bytes || std::fseek(file, static_cast<long>(range.start), SEEK_SET) != 0)
     return false;
   std::vector<unsigned char> image(static_cast<std::size_t>(size));
   if (!read_exact(file, image.data(), image.size()))
@@ -317,7 +317,7 @@ bool read_embedded_cover(const std::string& audio_path, std::size_t max_bytes,
   if (std::memcmp(header, "ID3", 3) == 0) {
     if (!find_id3_picture(file.get(), header, max_bytes, candidate)) {
       // Some FLAC files carry an ID3 tag in front of the stream.
-      const long after_tag = static_cast<long>(10 + read_u32_syncsafe(header + 6));
+      const long after_tag = 10L + static_cast<long>(read_u32_syncsafe(header + 6));
       if (std::fseek(file.get(), after_tag, SEEK_SET) != 0 || !has_flac_marker(file.get()) ||
           !find_flac_picture(file.get(), max_bytes, candidate)) {
         return false;
