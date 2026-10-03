@@ -67,6 +67,9 @@ add_library(3dsmsc_core STATIC
   src/library/tag_text.cpp
   src/library/artwork.cpp
   src/library/embedded_cover.cpp
+  src/library/cover_id3.cpp
+  src/library/cover_flac.cpp
+  src/library/cover_mp4.cpp
   src/library/controller.cpp
   src/library/folder_browser.cpp
   src/library/folder_list_file.cpp

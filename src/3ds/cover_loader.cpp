@@ -54,6 +54,9 @@ void CoverLoader::request(const std::string& key, const std::string& artwork_pat
 }
 
 bool CoverLoader::take(std::string& key, CoverPixels& tiled, CoverSource& source) {
+  // Called every frame: the unlocked look is only a shortcut, and the check under the lock decides.
+  if (!has_done_)
+    return false;
   const Guard guard(lock_);
   if (!has_done_)
     return false;
@@ -86,6 +89,9 @@ void CoverLoader::run() {
       continue;
     }
     const CoverSource source = load_track_cover(request.artwork_path, request.audio_path, linear_);
+    // The slow work is done outside the lock, which the UI thread takes every frame.
+    if (source != CoverSource::None)
+      tile_for_gpu(linear_, tiled_);
     const Guard guard(lock_);
     // A newer request arrived while decoding: this picture is already out of date.
     if (has_pending_)
@@ -93,7 +99,7 @@ void CoverLoader::run() {
     done_key_ = std::move(request.key);
     done_source_ = source;
     if (source != CoverSource::None)
-      tile_for_gpu(linear_, done_pixels_);
+      done_pixels_ = tiled_;
     has_done_ = true;
   }
 }

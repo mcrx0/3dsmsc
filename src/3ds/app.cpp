@@ -162,27 +162,18 @@ void App::poll_battery() {
 }
 
 // Keeps the cover on the screen in step with the current track. The picture comes from the
-// background decoder, so a track change first drops the old cover (a wrong picture is worse than
-// the placeholder) and the new one appears a moment later.
+// background decoder, so a change of cover first drops the old one (a wrong picture is worse than
+// the placeholder) and the new one appears a moment later. Tracks that share a cover (see
+// cover_key) keep it across the change.
 void App::update_cover() {
-  static const std::string no_cover;
+  static const std::string no_track;
   Track* track = queue_.mutable_current();
-  if (settings_.show_cover && track != nullptr && track->artwork_path.empty() &&
-      track->path != cover_lookup_path_) {
-    cover_lookup_path_ = track->path;
-    artwork_locator_.find(track->path, track->artwork_path);
-  }
-  // Tracks of an album that has a picture file share one key, so the picture is decoded once;
-  // otherwise the track's own embedded picture is used and its key is the track.
-  const std::string& wanted =
-      !settings_.show_cover || track == nullptr
-          ? no_cover
-          : (track->artwork_path.empty() ? track->path : track->artwork_path);
-  if (wanted != cover_key_) {
-    cover_key_ = wanted;
-    renderer_.set_cover(nullptr);
-    if (track != nullptr)
-      cover_loader_.request(cover_key_, track->artwork_path, track->path);
+  const bool enabled = settings_.show_cover && track != nullptr;
+  const std::string& path = enabled ? track->path : no_track;
+  if (enabled != cover_enabled_ || path != cover_track_path_) {
+    cover_enabled_ = enabled;
+    cover_track_path_ = path;
+    select_cover(enabled ? track : nullptr);
   }
   std::string loaded;
   CoverSource source = CoverSource::None;
@@ -191,6 +182,23 @@ void App::update_cover() {
   log_cover_result(loaded, source);
   if (source != CoverSource::None)
     renderer_.set_cover(&cover_buffer_);
+}
+
+// The track changed (or the cover was switched on or off): work out which picture it needs. A
+// queue restored from disk holds only paths, so the picture file is looked up here.
+void App::select_cover(Track* track) {
+  std::string key;
+  if (track != nullptr) {
+    if (track->artwork_path.empty())
+      artwork_locator_.find(track->path, track->artwork_path);
+    key = cover_key(*track);
+  }
+  if (key == cover_key_)
+    return;
+  cover_key_ = std::move(key);
+  renderer_.set_cover(nullptr);
+  if (track != nullptr)
+    cover_loader_.request(cover_key_, track->artwork_path, track->path);
 }
 
 // The first few outcomes go to boot.log: a cover that never appears is otherwise a silent failure.

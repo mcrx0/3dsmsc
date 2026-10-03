@@ -71,6 +71,7 @@ class App {
   void update_frame_state(const PlaybackSnapshot& playback, std::uint64_t frame_start);
   void poll_battery();
   void update_cover();
+  void select_cover(Track* track);
   void log_cover_result(const std::string& key, CoverSource source);
   void save_queue_if_due();
   void log_slow_frame(std::uint64_t frame_start, std::uint64_t render_start,
@@ -133,7 +134,9 @@ class App {
   bool audio_available_ = false;
   Settings settings_;
   CoverLoader cover_loader_;
-  std::string cover_key_;  // what the shown (or being decoded) cover belongs to
+  std::string cover_key_;         // what the shown (or being decoded) cover belongs to
+  std::string cover_track_path_;  // the track the cover was last chosen for
+  bool cover_enabled_ = false;
   int cover_logs_ = 0;
   CoverPixels cover_buffer_ = {};
   std::string config_error_;
@@ -141,7 +144,6 @@ class App {
   LocalFileSystem filesystem_;
   // A queue restored from disk holds only paths, so the cover is looked up when a track plays.
   ArtworkLocator artwork_locator_;
-  std::string cover_lookup_path_;
   LibraryController library_;
   FolderBrowser folder_browser_;
   std::vector<std::string> selected_folders_;

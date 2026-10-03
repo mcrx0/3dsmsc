@@ -82,6 +82,15 @@ std::size_t morton_in_tile(int x, int y) {
 
 }
 
+std::string cover_key(const Track& track) {
+  if (!track.artwork_path.empty())
+    return track.artwork_path;
+  if (track.album.empty())
+    return track.path;
+  // A separator that cannot occur in a tag keeps ("A B", "C") apart from ("A", "B C").
+  return "album\x1F" + track.artist + "\x1F" + track.album;
+}
+
 bool load_cover_from_memory(const unsigned char* data, std::size_t size, CoverPixels& pixels) {
   if (data == nullptr || size == 0 || size > max_cover_file_bytes)
     return false;

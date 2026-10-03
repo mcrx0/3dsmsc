@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <string>
 
+#include "3dsmsc/library/track.hpp"
+
 namespace threedsmsc {
 
 // The cover is shown as a small thumbnail, so it is shrunk to one fixed texture: 64 x 64 pixels,
@@ -24,6 +26,11 @@ bool load_cover(const std::string& path, CoverPixels& pixels);
 
 // Same, from a picture already in memory (the PNG or JPEG bytes of an embedded cover).
 bool load_cover_from_memory(const unsigned char* data, std::size_t size, CoverPixels& pixels);
+
+// Which tracks share one cover picture, so it is decoded once and stays on screen across a track
+// change: tracks whose album has a picture file share that file; otherwise tracks with the same
+// artist and album tags share the album's embedded picture; any other track stands alone.
+std::string cover_key(const Track& track);
 
 // Where a track's cover came from.
 enum class CoverSource { None, Sidecar, Embedded };

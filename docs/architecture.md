@@ -42,7 +42,8 @@ module owns play order.
 - `queue`: the queue, its play order (sequential or shuffled), and queue file persistence.
 - `config`: compiled defaults and the small TOML subset loader and writer.
 - `ui`: the cover image decoder (PNG/JPEG, cropped and shrunk to a 64 x 64 thumbnail in the GPU's
-  tile layout), the view state shared with the renderer, the screen layout constants used by both drawing
+  tile layout) and the rule for which tracks share one cover (an album's picture is decoded once and
+  stays on screen across track changes), the view state shared with the renderer, the screen layout constants used by both drawing
   and touch input, the drill-down browse navigator, the equalizer editing rules, and the text of the
   About and Button mapping screens.
 - `util`: small shared helpers, such as the RAII file handle.

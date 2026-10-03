@@ -47,9 +47,10 @@ class CoverLoader {
   std::string done_key_;
   CoverPixels done_pixels_ = {};
   CoverSource done_source_ = CoverSource::None;
-  bool has_done_ = false;
+  volatile bool has_done_ = false;
   // Used only by the worker.
   CoverPixels linear_ = {};
+  CoverPixels tiled_ = {};
 };
 
 }

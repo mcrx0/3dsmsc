@@ -314,6 +314,38 @@ void test_picture_file_beats_the_embedded_picture() {
   std::filesystem::remove(audio);
 }
 
+void test_tracks_of_one_album_share_a_cover_key() {
+  threedsmsc::Track first;
+  first.path = "a/1.mp3";
+  first.artist = "Artist";
+  first.album = "Album";
+  threedsmsc::Track second = first;
+  second.path = "a/2.mp3";
+  assert(threedsmsc::cover_key(first) == threedsmsc::cover_key(second));  // the same album
+  second.album = "Other";
+  assert(threedsmsc::cover_key(first) != threedsmsc::cover_key(second));
+  second = first;
+  second.artist = "Someone else";
+  assert(threedsmsc::cover_key(first) != threedsmsc::cover_key(second));
+  // A picture file is shared by everything that points at it, whatever the tags say.
+  first.artwork_path = second.artwork_path = "a/cover.jpg";
+  second.album = "Other";
+  assert(threedsmsc::cover_key(first) == threedsmsc::cover_key(second));
+  // With no album tag the track stands alone, and the key cannot be confused across fields.
+  threedsmsc::Track bare;
+  bare.path = "b/1.mp3";
+  threedsmsc::Track other = bare;
+  other.path = "b/2.mp3";
+  assert(threedsmsc::cover_key(bare) != threedsmsc::cover_key(other));
+  threedsmsc::Track left;
+  left.album = "B C";
+  left.artist = "A";
+  threedsmsc::Track right;
+  right.album = "C";
+  right.artist = "A B";
+  assert(threedsmsc::cover_key(left) != threedsmsc::cover_key(right));
+}
+
 }
 
 void run_cover_tests() {
@@ -329,4 +361,5 @@ void run_cover_tests() {
   test_mp4_picture_is_extracted();
   test_files_without_a_usable_picture_give_nothing();
   test_picture_file_beats_the_embedded_picture();
+  test_tracks_of_one_album_share_a_cover_key();
 }
