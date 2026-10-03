@@ -225,6 +225,11 @@ void test_layout_is_consistent() {
   assert(layout::cover_frame_y + layout::cover_frame_size < 199);
   assert(layout::cover_frame_x >= 0);
   assert(layout::cover_text_x >= layout::cover_frame_x + layout::cover_frame_size + 4);
+  // The picture is inside the frame with room for the outline, and the corner radius is smaller
+  // than that gap plus the outline, so the square picture cannot poke out of the rounded frame.
+  assert(layout::cover_image_inset >= 3);
+  assert(layout::cover_image_inset * 2 < layout::cover_frame_size);
+  assert(layout::cover_frame_radius <= layout::cover_image_inset);
 }
 
 }

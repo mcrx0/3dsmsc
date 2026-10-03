@@ -22,6 +22,11 @@ constexpr int button_pair_split =
 constexpr int cover_frame_x = 22;
 constexpr int cover_frame_y = 150;
 constexpr int cover_frame_size = 44;
+// The picture sits this far inside the frame. The corners are square and the frame's are rounded,
+// so the gap must be wider than the outline plus the curve, or the picture pokes out of the
+// corners.
+constexpr int cover_image_inset = 3;
+constexpr int cover_frame_radius = 3;
 constexpr int cover_text_x = 74;
 
 // Home screen.

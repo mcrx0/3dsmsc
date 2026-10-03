@@ -560,12 +560,13 @@ void CassetteRenderer::draw_cover(const Palette& p) {
   const float frame = px(layout::cover_frame_size);
   const float x = px(layout::cover_frame_x);
   const float y = px(layout::cover_frame_y);
-  card(x, y, frame, frame, 6.0f, 0.1f, color(p.surface), color(p.border));
-  const float inner = frame - 4.0f;
+  card(x, y, frame, frame, px(layout::cover_frame_radius), 0.1f, color(p.surface), color(p.border));
+  const float inset = px(layout::cover_image_inset);
+  const float inner = frame - 2.0f * inset;
   if (cover_visible_) {
     const C2D_Image image = {&cover_texture_, &cover_subtexture_};
     const float scale = inner / static_cast<float>(cover_size);
-    C2D_DrawImageAt(image, x + 2.0f, y + 2.0f, 0.2f, nullptr, scale, scale);
+    C2D_DrawImageAt(image, x + inset, y + inset, 0.2f, nullptr, scale, scale);
     return;
   }
   const float icon = inner * 0.6f;
