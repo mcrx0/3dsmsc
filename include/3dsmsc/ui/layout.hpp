@@ -17,6 +17,13 @@ constexpr int tick_zone_right = 56;  // a tap left of this x ticks a folder inst
 constexpr int button_pair_split =
     158;  // on the queue's button row: repeat on the left, shuffle right
 
+// Top screen, now playing: the cover frame sits left of the title and artist, which move right to
+// make room for it. It ends above the progress bar.
+constexpr int cover_frame_x = 22;
+constexpr int cover_frame_y = 150;
+constexpr int cover_frame_size = 44;
+constexpr int cover_text_x = 74;
+
 // Home screen.
 constexpr int status_card_top = 36;
 constexpr int status_card_bottom = 72;

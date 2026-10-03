@@ -8,3 +8,4 @@ void run_audio_tests();
 void run_queue_tests();
 void run_ui_tests();
 void run_playback_tests();
+void run_cover_tests();

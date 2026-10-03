@@ -69,7 +69,22 @@ void C3D_FrameEnd(int) {
   if (ms)
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
-void C3D_TexDelete(C3D_Tex*) {}
+// The cover texture: real memory of the right size, so the sanitizers check what the renderer
+// copies.
+bool C3D_TexInit(C3D_Tex* tex, u16 width, u16 height, GPU_TEXCOLOR) {
+  tex->width = width;
+  tex->height = height;
+  tex->data = std::calloc(static_cast<size_t>(width) * height, 2);
+  return true;
+}
+void C3D_TexSetFilter(C3D_Tex*, GPU_TEXTURE_FILTER_PARAM, GPU_TEXTURE_FILTER_PARAM) {}
+void C3D_TexLoadImage(C3D_Tex* tex, const void* data, GPU_TEXFACE, int) {
+  std::memcpy(tex->data, data, static_cast<size_t>(tex->width) * tex->height * 2);
+}
+void C3D_TexDelete(C3D_Tex* tex) {
+  std::free(tex->data);
+  tex->data = nullptr;
+}
 C2D_SpriteSheet C2D_SpriteSheetLoad(const char*) {
   return (C2D_SpriteSheet)1;
 }
@@ -86,6 +101,10 @@ void C2D_PlainImageTint(C2D_ImageTint* t, u32 c, float) {
 }
 bool C2D_DrawImageAt(C2D_Image im, float x, float y, float z, const C2D_ImageTint* t, float sx,
                      float) {
+  if (im.subtex->width == 64) {  // the cover thumbnail, drawn from the real texture
+    fprintf(out, "K %d %f %f %f %f\n", cur, x, y, z, sx);
+    return true;
+  }
   fprintf(out, "I %d %f %f %f %f %lu %u\n", cur, x, y, z, sx, (unsigned long)im.tex, t->c);
   return true;
 }

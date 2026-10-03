@@ -18,6 +18,8 @@ apt-get install -y -qq --no-install-recommends clang-format clang-tidy cmake nin
   librsvg2-2 libcairo2 >/dev/null
 git config --global --add safe.directory /w
 cd /w
+# Hand the files back to the invoking user on exit (docker runs as root; podman maps the user).
+trap 'chown -R "$UIDGID" /w' EXIT
 echo "== host job: format, tests, static analysis"
 bash scripts/check-quality.sh
 echo "== package-3ds job: build, stack, package"
@@ -28,4 +30,4 @@ bash scripts/check-stack-usage.sh
 test "$(head -c 4 build/3ds/3dsmsc.3dsx)" = "3DSX"
 echo "CI replay passed"
 INNER
-"$engine" run --rm -v "$work/repo":/w -v "$work/ci.sh":/ci.sh:ro docker.io/devkitpro/devkitarm bash /ci.sh
+"$engine" run --rm -e UIDGID="$(id -u):$(id -g)" -v "$work/repo":/w -v "$work/ci.sh":/ci.sh:ro docker.io/devkitpro/devkitarm bash /ci.sh

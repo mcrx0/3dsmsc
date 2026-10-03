@@ -15,6 +15,8 @@ int main(int argc, char** argv) {
     t.album = "Album " + std::to_string(i % 1300);
     t.duration_ms = 200000 + i;
     t.track_number = i % 15;
+    if (argc > 3)
+      t.artwork_path = argv[3];
     t.format = threedsmsc::AudioFormat::Mp3;
     lib.tracks.push_back(t);
   }

@@ -41,7 +41,8 @@ module owns play order.
   engine only through the `AudioPlayer` interface, so a fake drives it in the tests.
 - `queue`: the queue, its play order (sequential or shuffled), and queue file persistence.
 - `config`: compiled defaults and the small TOML subset loader and writer.
-- `ui`: the view state shared with the renderer, the screen layout constants used by both drawing
+- `ui`: the cover image decoder (PNG/JPEG, cropped and shrunk to a 64 x 64 thumbnail in the GPU's
+  tile layout), the view state shared with the renderer, the screen layout constants used by both drawing
   and touch input, the drill-down browse navigator, the equalizer editing rules, and the text of the
   About and Button mapping screens.
 - `util`: small shared helpers, such as the RAII file handle.
@@ -57,6 +58,7 @@ the other way. See `docs/coding-standards.md`.
 | --- | --- | --- |
 | UI (main) | 32 KB | Input, scans, drawing at the display rate, saving files |
 | Audio | 64 KB | Decoding, equalizing, filling NDSP buffers, carrying out seeks |
+| Cover | 96 KB | Decoding the cover image, at the lowest priority, so a large JPEG never stalls the screen |
 
 The audio thread runs at a higher priority than the UI thread so a slow frame cannot starve it. The
 UI and audio threads share only small values (state, position, a pending seek, the equalizer gains),
@@ -132,7 +134,7 @@ reports the error. Unknown keys are ignored.
 | Section | Keys |
 | --- | --- |
 | `library` | `music_root`, `exclude_hidden`, plus `last_selected_root`, `scan_scope`, `force_full_scan` (kept for older configs) |
-| `player` | `volume`, `animation_enabled`, `animation_speed`, `search_case_sensitive`, `background_playback`, `theme`, `battery_display`, `repeat`, `shuffle`, `seek_seconds` |
+| `player` | `volume`, `animation_enabled`, `animation_speed`, `search_case_sensitive`, `background_playback`, `theme`, `battery_display`, `show_cover`, `repeat`, `shuffle`, `seek_seconds` |
 | `equalizer` | `enabled`, `bands` (ten comma-separated dB values) |
 | `controls` | Button names. Read and saved, but button mapping is fixed in code for now |
 

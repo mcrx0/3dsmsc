@@ -15,6 +15,8 @@ search_case_sensitive = false
 background_playback = true
 # "dark" or "light"
 theme = "dark"
+# A small cover image beside the title (cover.jpg/png or folder.jpg/png in the album folder).
+show_cover = true
 # Battery in the header: "icon", "percent" or "off".
 battery_display = "icon"
 # "off" (stop after the last track), "all" (loop the queue) or "one"

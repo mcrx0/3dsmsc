@@ -23,7 +23,7 @@ mkdir -p "$out"
 # shellcheck disable=SC2086
 g++ -std=c++17 -g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer -fno-rtti -pthread $init \
   -Itools/host_harness/stubs -Iinclude -Ithird_party/minimp3 -Ithird_party/minimp4 \
-  -Ithird_party/dr_libs -Ithird_party/faad2/include -Isrc/3ds \
+  -Ithird_party/dr_libs -Ithird_party/stb -Ithird_party/faad2/include -Isrc/3ds \
   src/3ds/*.cpp tools/host_harness/render_stub.cpp tools/host_harness/runtime_stub.cpp \
   build/lib3dsmsc_core.a build/libfaad2_decoder.a -lm -o "$out/hostmain_$variant"
 g++ -std=c++17 -Iinclude tools/host_harness/make_cache.cpp build/lib3dsmsc_core.a -o "$out/make_cache"

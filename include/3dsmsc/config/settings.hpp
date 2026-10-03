@@ -45,6 +45,7 @@ struct Settings {
   bool background_playback;
   Theme theme;
   BatteryDisplay battery_display;
+  bool show_cover;  // a small cover image beside the title on the top screen
   RepeatMode repeat;
   bool shuffle;
   int seek_seconds;  // step of the seek buttons; one of seek_step_options

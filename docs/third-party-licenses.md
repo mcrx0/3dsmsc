@@ -34,6 +34,14 @@ The project must not ship code with a license incompatible with the project dist
 - License file: `third_party/minimp4/LICENSE`
 - Integration: M4A/MP4 audio-track indexing and access-unit extraction
 
+## stb_image
+
+- Source: `third_party/stb/stb_image.h` (v2.30)
+- License: MIT or public domain (the Unlicense), at the project's choice
+- License file: `third_party/stb/LICENSE`
+- Integration: decoding PNG and JPEG covers on a background thread. Only those two formats are
+  compiled in (`src/ui/stb_image_impl.cpp`); the image is cropped and shrunk to 64 x 64 immediately.
+
 ## FAAD2
 
 - Source: `third_party/faad2/`

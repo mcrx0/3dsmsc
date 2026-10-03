@@ -32,6 +32,7 @@ Settings load_initial_settings() {
 App::App(CassetteRenderer& renderer)
     : renderer_(renderer),
       settings_(load_initial_settings()),
+      artwork_locator_(filesystem_),
       library_(filesystem_, settings_),
       // The folder picker can browse the whole SD card, so its root is the card itself.
       folder_browser_(filesystem_, "sdmc:/"),
@@ -44,6 +45,7 @@ App::App(CassetteRenderer& renderer)
   mcuHwcInit();
   ptmuInit();
   audio_available_ = audio_.init();
+  cover_loader_.start();
   if (audio_available_) {
     boot_log("audio ready");
   } else {
@@ -72,6 +74,7 @@ App::App(CassetteRenderer& renderer)
   view_.seek_seconds = settings_.seek_seconds;
   view_.repeat_mode = static_cast<int>(settings_.repeat);
   view_.battery_display = static_cast<int>(settings_.battery_display);
+  view_.show_cover = settings_.show_cover;
   view_.shuffle = settings_.shuffle;
   view_.library_path = describe_roots();
   view_.status = audio_available_ ? library_.status() : audio_.error();
@@ -158,6 +161,30 @@ void App::poll_battery() {
     view_.battery_charging = charging != 0;
 }
 
+// Keeps the cover on the screen in step with the current track. The picture comes from the
+// background decoder, so a track change first drops the old cover (a wrong picture is worse than
+// the placeholder) and the new one appears a moment later.
+void App::update_cover() {
+  static const std::string no_cover;
+  Track* track = queue_.mutable_current();
+  if (settings_.show_cover && track != nullptr && track->artwork_path.empty() &&
+      track->path != cover_lookup_path_) {
+    cover_lookup_path_ = track->path;
+    artwork_locator_.find(track->path, track->artwork_path);
+  }
+  const std::string& wanted =
+      settings_.show_cover && track != nullptr ? track->artwork_path : no_cover;
+  if (wanted != cover_path_) {
+    cover_path_ = wanted;
+    renderer_.set_cover(nullptr);
+    cover_loader_.request(cover_path_);
+  }
+  std::string loaded;
+  bool ok = false;
+  if (cover_loader_.take(loaded, cover_buffer_, ok) && ok && loaded == cover_path_)
+    renderer_.set_cover(&cover_buffer_);
+}
+
 void App::save_queue_if_due() {
   if (queue_dirty_ && osGetTime() - last_queue_save_ > queue_save_delay_ms) {
     save_queue_file(queue_path, queue_);
@@ -218,6 +245,7 @@ void App::run() {
     }
     const PlaybackSnapshot playback = playback_.tick(view_.playing);
     sync_playback();
+    update_cover();
     update_frame_state(playback, frame_start);
     save_queue_if_due();
     const std::uint64_t render_start = osGetTime();
@@ -232,6 +260,7 @@ void App::shutdown() {
   sync_playback();
   if (queue_dirty_)
     save_queue_file(queue_path, queue_);
+  cover_loader_.stop();
   audio_.shutdown();
   ptmuExit();
   mcuHwcExit();

@@ -27,7 +27,7 @@ for name,lines in frames.items():
         items=[]
         for i,ln in enumerate(cmds[t]):
             a=ln.split(' ',8); kind=a[0]
-            z=float(a[4]) if kind in 'TRGOI' else float(a[7]) if kind=='L' else 0
+            z=float(a[4]) if kind in 'TRGOIK' else float(a[7]) if kind=='L' else 0
             items.append((z,i,ln))
         items.sort()
         for z,i,ln in items:
@@ -46,6 +46,9 @@ for name,lines in frames.items():
             elif k=='T':
                 a=ln.split(' ',7); x,y,z_,sx,c,txt=float(a[2]),float(a[3]),a[4],float(a[5]),int(a[6]),a[7]
                 f=ImageFont.truetype(FONT,int(26*sx*SC)); d.text((x*SC,y*SC),txt,font=f,fill=rgba(c),anchor='ls')
+            elif k=='K':
+                _,_,x,y,z_,sc=ln.split(); x,y,sc=float(x),float(y),float(sc); sz=int(64*sc*SC)
+                d.rectangle([x*SC,y*SC,x*SC+sz,y*SC+sz],fill=(70,130,170,255)); d.rectangle([x*SC,y*SC,x*SC+sz//2,y*SC+sz//2],fill=(200,90,70,255))
             elif k=='I':
                 _,_,x,y,z_,sc,idx,c=ln.split(); x,y,sc=float(x),float(y),float(sc); ic=icons[int(idx)]
                 sz=int(32*sc*SC); ic=ic.resize((sz,sz),Image.LANCZOS); col=rgba(int(c)); tint=Image.new('RGBA',ic.size,col); tint.putalpha(ic.split()[3]); im.alpha_composite(tint,(int(x*SC),int(y*SC)))

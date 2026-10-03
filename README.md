@@ -22,7 +22,7 @@ controlling playback.
   Seeking runs on the audio thread, so the UI never waits for it.
 - Repeat (off, all, one) and shuffle (every track once per pass, then reshuffled).
 - A ten-band equalizer (31 Hz to 16 kHz, ±12 dB) with presets and a touch bar editor.
-- Background playback while the lid is closed, a headphone icon while headphones are plugged in, and a battery indicator (icon, percentage, or off).
+- Background playback while the lid is closed, a headphone icon while headphones are plugged in, a battery indicator (icon, percentage, or off), and a small cover image beside the title (a `cover.jpg`/`cover.png` or `folder.jpg`/`folder.png` in the album folder; it can be switched off under **Settings > UI**).
 
 **Library**
 
@@ -148,6 +148,6 @@ never notices.
 ## License
 
 3DSMSC is free software under the [GNU General Public License v3.0 or later](LICENSE). It bundles
-FAAD2 (GPL-2.0-or-later), minimp3 and minimp4 (CC0), and dr_flac (Unlicense / MIT-0), and the 3DS
+FAAD2 (GPL-2.0-or-later), minimp3 and minimp4 (CC0), dr_flac (Unlicense / MIT-0), and stb_image (MIT or public domain), and the 3DS
 build links libctru, citro2d, and citro3d (zlib). The full list, with the reason for the choice, is
 in [docs/third-party-licenses.md](docs/third-party-licenses.md).

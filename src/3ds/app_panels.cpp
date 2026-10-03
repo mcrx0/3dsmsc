@@ -24,6 +24,7 @@ enum class SettingsRow : std::size_t {
   Animation,
   Theme,
   Battery,
+  Cover,
   HeaderMisc,
   Controls,
   About,
@@ -128,6 +129,8 @@ std::string App::settings_label(std::size_t row) const {
       return settings_.background_playback ? "Background playback: on" : "Background playback: off";
     case SettingsRow::Animation:
       return settings_.animation_enabled ? "Reel animation: on" : "Reel animation: off";
+    case SettingsRow::Cover:
+      return settings_.show_cover ? "Cover art: on" : "Cover art: off";
     case SettingsRow::Battery:
       return std::string("Battery: ") + battery_display_name(settings_.battery_display);
     case SettingsRow::Theme:
@@ -419,6 +422,11 @@ void App::activate_setting(std::size_t row) {
       break;
     case SettingsRow::Animation:
       settings_.animation_enabled = !settings_.animation_enabled;
+      save_settings();
+      break;
+    case SettingsRow::Cover:
+      settings_.show_cover = !settings_.show_cover;
+      view_.show_cover = settings_.show_cover;
       save_settings();
       break;
     case SettingsRow::Battery:

@@ -56,7 +56,10 @@ int main(int argc, char** argv) {
   // romfs holds the optional icon sheet; the UI still works without it.
   const bool romfs_mounted = R_SUCCEEDED(romfsInit());
   boot_log(romfs_mounted ? "romfs mounted" : "romfs unavailable (text labels)");
-  threedsmsc::CassetteRenderer renderer;
+  // The renderer holds the cover's 8 KB pixel buffer, which does not belong on the 32 KB stack.
+  const std::unique_ptr<threedsmsc::CassetteRenderer> renderer_storage(
+      new threedsmsc::CassetteRenderer());
+  threedsmsc::CassetteRenderer& renderer = *renderer_storage;
   if (!renderer.init()) {
     C2D_Fini();
     C3D_Fini();

@@ -81,10 +81,19 @@ bool CassetteRenderer::init() {
     shutdown();
     return false;
   }
+  // The cover is optional like the icons: without its texture the placeholder is drawn.
+  cover_texture_ready_ = C3D_TexInit(&cover_texture_, cover_size, cover_size, GPU_RGB565);
+  if (cover_texture_ready_)
+    C3D_TexSetFilter(&cover_texture_, GPU_LINEAR, GPU_LINEAR);
   return true;
 }
 
 void CassetteRenderer::shutdown() {
+  if (cover_texture_ready_) {
+    C3D_TexDelete(&cover_texture_);
+    cover_texture_ready_ = false;
+    cover_visible_ = false;
+  }
   if (icons_ != nullptr) {
     C2D_SpriteSheetFree(icons_);
     icons_ = nullptr;
@@ -241,12 +250,17 @@ void CassetteRenderer::draw_top(const CassetteView& view) {
   C2D_DrawCircleSolid(276.0f, 126.0f, 0.15f, 5.0f, color(0xFF0E0F11));
   draw_text("3DSMSC", 168.0f, 131.0f, 0.5f, color(cassette_cream));
 
-  // Now playing.
-  draw_text_fit(view.has_track ? view.title : std::string("No track selected"), 24.0f, 168.0f,
-                0.62f, 352.0f, color(p.text));
+  // Now playing. With the cover on, the text moves right to make room for it.
+  const bool cover_slot = view.show_cover && view.has_track;
+  if (cover_slot)
+    draw_cover(p);
+  const float text_x = cover_slot ? px(layout::cover_text_x) : 24.0f;
+  const float text_width = 376.0f - text_x;
+  draw_text_fit(view.has_track ? view.title : std::string("No track selected"), text_x, 168.0f,
+                0.62f, text_width, color(p.text));
   draw_text_fit(view.has_track ? view.artist + "  \xC2\xB7  " + view.album
                                : std::string("Choose a music folder to scan"),
-                24.0f, 188.0f, 0.42f, 352.0f, color(p.muted));
+                text_x, 188.0f, 0.42f, text_width, color(p.muted));
   round_rect(24.0f, 199.0f, 352.0f, 6.0f, 3.0f, 0.3f, color(p.border));
   if (progress > 0.0f)
     round_rect(24.0f, 199.0f, 352.0f * progress < 6.0f ? 6.0f : 352.0f * progress, 6.0f, 3.0f, 0.4f,
@@ -540,6 +554,25 @@ void CassetteRenderer::draw_tiles(const CassetteView& view, const Palette& p) {
   }
 }
 
+// The cover thumbnail beside the title: a framed square showing the picture, or a note icon while
+// there is none (no cover file, still decoding, or too large to load).
+void CassetteRenderer::draw_cover(const Palette& p) {
+  const float frame = px(layout::cover_frame_size);
+  const float x = px(layout::cover_frame_x);
+  const float y = px(layout::cover_frame_y);
+  card(x, y, frame, frame, 6.0f, 0.1f, color(p.surface), color(p.border));
+  const float inner = frame - 4.0f;
+  if (cover_visible_) {
+    const C2D_Image image = {&cover_texture_, &cover_subtexture_};
+    const float scale = inner / static_cast<float>(cover_size);
+    C2D_DrawImageAt(image, x + 2.0f, y + 2.0f, 0.2f, nullptr, scale, scale);
+    return;
+  }
+  const float icon = inner * 0.6f;
+  draw_icon(IconId::Note, x + (frame - icon) / 2.0f, y + (frame - icon) / 2.0f, icon,
+            color(p.muted));
+}
+
 // The bar editor. Its bars, zero line, and buttons use the numbers in ui/layout.hpp, the same ones
 // the input code hit-tests with.
 void CassetteRenderer::draw_equalizer(const CassetteView& view) {
@@ -605,11 +638,37 @@ void CassetteRenderer::draw_equalizer(const CassetteView& view) {
   draw_icon(IconId::Scan, 170.0f, 214.0f, 16.0f, color(p.glyph));
 }
 
+void CassetteRenderer::set_cover(const CoverPixels* tiled) {
+  if (tiled == nullptr) {
+    cover_clear_pending_ = true;
+    cover_upload_pending_ = false;
+    return;
+  }
+  cover_pixels_ = *tiled;
+  cover_upload_pending_ = true;
+  cover_clear_pending_ = false;
+}
+
+// Called right after C3D_FrameBegin has waited for the previous frame, so the GPU is not reading
+// the texture while it is rewritten.
+void CassetteRenderer::apply_cover_change() {
+  if (cover_clear_pending_) {
+    cover_visible_ = false;
+    cover_clear_pending_ = false;
+  }
+  if (cover_upload_pending_ && cover_texture_ready_) {
+    C3D_TexLoadImage(&cover_texture_, cover_pixels_.data(), GPU_TEXFACE_2D, 0);
+    cover_visible_ = true;
+  }
+  cover_upload_pending_ = false;
+}
+
 void CassetteRenderer::render(const CassetteView& view) {
   shadow_color_ = view.light_theme ? color(light_palette.shadow) : color(dark_palette.shadow);
   if ((view.light_theme ? light_palette.shadow : dark_palette.shadow) == 0)
     shadow_color_ = 0;
   C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+  apply_cover_change();
   draw_top(view);
   draw_bottom(view);
   C2D_Flush();

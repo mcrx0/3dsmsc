@@ -98,6 +98,8 @@ void test_settings_file() {
   settings.theme = threedsmsc::Theme::Light;
   assert(settings.battery_display == threedsmsc::BatteryDisplay::Icon);
   settings.battery_display = threedsmsc::BatteryDisplay::Percent;
+  assert(settings.show_cover);
+  settings.show_cover = false;
   assert(settings.seek_seconds == 10);
   settings.seek_seconds = 25;
   assert(settings.repeat == threedsmsc::RepeatMode::All);  // the queue has always looped
@@ -116,6 +118,7 @@ void test_settings_file() {
   assert(!settings.animation_enabled);
   assert(settings.theme == threedsmsc::Theme::Light);
   assert(settings.battery_display == threedsmsc::BatteryDisplay::Percent);
+  assert(!settings.show_cover);
   assert(settings.seek_seconds == 25);
   assert(settings.repeat == threedsmsc::RepeatMode::One);
   assert(settings.shuffle);
